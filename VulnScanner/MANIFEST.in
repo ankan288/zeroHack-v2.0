@@ -1,0 +1,50 @@
+# VulnScanner v1.8 - Package Manifest
+# This file specifies which files to include in the distribution package
+
+# Include documentation files
+include README.md
+include CHANGELOG.md
+include LICENSE
+include requirements.txt
+
+# Include main scripts
+include vulnscanner.py
+include setup.py
+include install-kali.sh
+
+# Include all Python modules
+recursive-include modules *.py
+
+# Include demo scripts
+recursive-include demos *.py
+
+# Include validation and testing scripts
+include validate_system.py
+include system_status.py
+
+# Include configuration files (if any)
+recursive-include configs *.yaml *.yml *.json *.conf
+
+# Include wordlists and payloads (if any)
+recursive-include wordlists *.txt
+recursive-include payloads *.json *.txt
+
+# Include documentation
+recursive-include docs *.md *.rst *.txt
+
+# Include examples
+recursive-include examples *.py *.sh *.txt
+
+# Exclude unnecessary files
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *.pyd
+global-exclude __pycache__
+global-exclude .git*
+global-exclude .DS_Store
+global-exclude *.so
+global-exclude .coverage
+global-exclude .pytest_cache
+recursive-exclude * *.py[co]
+recursive-exclude * __pycache__
+recursive-exclude * .git*
