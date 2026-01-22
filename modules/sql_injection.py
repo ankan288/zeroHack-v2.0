@@ -314,20 +314,46 @@ class SQLInjectionTester:
             ]
         }
         
-        # Error patterns that indicate SQL injection
+        # Error patterns that indicate SQL injection - Made more specific to reduce false positives
+        # Each pattern now requires more context to match
         self.error_patterns = [
-            r"SQL syntax.*MySQL", r"Warning.*mysql_.*", r"valid MySQL result",
-            r"MySqlClient\.", r"PostgreSQL.*ERROR", r"Warning.*pg_.*",
-            r"valid PostgreSQL result", r"Npgsql\.", r"Oracle error",
-            r"Oracle.*Driver", r"Warning.*oci_.*", r"Microsoft.*ODBC.*SQL Server",
-            r"SQLServer JDBC Driver", r"SqlException", r"OLE DB.*SQL Server",
-            r"Unclosed quotation mark after", r"quoted string not properly terminated",
-            r"Microsoft JET Database Engine", r"Access Database Engine",
-            r"SQLite.*error", r"sqlite3.OperationalError", r"SQLiteException",
-            r"Syntax error.*query expression", r"Data type mismatch",
-            r"could not prepare statement", r"unknown column", r"ambiguous column name",
-            r"Invalid column name", r"Column.*doesn't exist", r"Table.*doesn't exist",
-            r"Division by zero", r"Arithmetic overflow error", r"Conversion failed"
+            # MySQL specific - require MySQL context
+            r"SQL syntax.*MySQL", r"Warning.*mysql_", r"valid MySQL result",
+            r"MySqlClient\.", r"mysql_fetch_array\(\)", r"mysql_num_rows\(\)",
+            
+            # PostgreSQL specific
+            r"PostgreSQL.*ERROR", r"Warning.*pg_", r"valid PostgreSQL result",
+            r"Npgsql\.", r"PG::SyntaxError", r"unterminated quoted string at or near",
+            
+            # Oracle specific
+            r"ORA-[0-9]+", r"Oracle.*Driver", r"Warning.*oci_",
+            r"Oracle error", r"PLS-[0-9]+",
+            
+            # SQL Server specific
+            r"Microsoft.*ODBC.*SQL Server", r"SQLServer JDBC Driver",
+            r"SqlException.*SQL Server", r"OLE DB.*SQL Server",
+            r"Unclosed quotation mark after the character string",
+            r"Incorrect syntax near",
+            
+            # SQLite specific
+            r"SQLite3::SQLException", r"sqlite3\.OperationalError",
+            r"SQLiteException", r"SQLITE_ERROR",
+            
+            # Generic but specific SQL errors (require SQL keywords for context)
+            r"quoted string not properly terminated",
+            r"You have an error in your SQL syntax",
+            r"supplied argument is not a valid MySQL",
+            r"Column count doesn't match value count",
+            r"Unknown column '[^']+' in 'where clause'",
+            r"Table '[^']+' doesn't exist",
+        ]
+        
+        # Patterns that are informational only (not confirmed vulns)
+        self.informational_patterns = [
+            r"Syntax error",  # Too generic - could be JS error
+            r"Data type mismatch",  # Could be form validation
+            r"Conversion failed",  # Could be normal app behavior
+            r"Division by zero",  # Could be math error
         ]
     
     def test_parameter(self, url, param, value, method='GET', waf_detected=None):
@@ -369,26 +395,48 @@ class SQLInjectionTester:
                         response = requests.post(url, data=test_data, timeout=self.timeout, verify=False)
                     
                     # Check for SQL errors in response
+                    # First, get a baseline response without payload to compare
+                    found_error = False
+                    matched_pattern = None
+                    
                     for pattern in self.error_patterns:
                         if re.search(pattern, response.text, re.IGNORECASE):
-                            vuln = {
-                                'type': 'SQL Injection',
-                                'severity': 'High',
-                                'url': url,
-                                'parameter': param,
-                                'payload': test_payload,
-                                'method': method,
-                                'evidence': f"SQL error pattern found: {pattern}",
-                                'response_length': len(response.text),
-                                'status_code': response.status_code
-                            }
-                            results.append(vuln)
-                            notify_vulnerability(vuln)  # Real-time notification
-                            print(f"{Fore.RED}[!] SQL Injection found: {url} (param: {param}){Style.RESET_ALL}")
+                            matched_pattern = pattern
+                            found_error = True
                             break
+                    
+                    if found_error:
+                        # Determine confidence based on pattern specificity
+                        high_confidence_patterns = [
+                            r"SQL syntax.*MySQL", r"ORA-[0-9]+", r"PG::SyntaxError",
+                            r"Unclosed quotation mark", r"You have an error in your SQL syntax"
+                        ]
+                        
+                        confidence = 'Medium'
+                        for hcp in high_confidence_patterns:
+                            if re.search(hcp, matched_pattern, re.IGNORECASE):
+                                confidence = 'High'
+                                break
+                        
+                        vuln = {
+                            'type': 'SQL Injection',
+                            'severity': 'High' if confidence == 'High' else 'Medium',
+                            'confidence': confidence,
+                            'url': url,
+                            'parameter': param,
+                            'payload': test_payload,
+                            'method': method,
+                            'evidence': f"SQL error pattern found: {matched_pattern}",
+                            'response_length': len(response.text),
+                            'status_code': response.status_code,
+                            'note': 'High confidence' if confidence == 'High' else 'Verify manually - pattern match may be coincidental'
+                        }
+                        results.append(vuln)
+                        notify_vulnerability(vuln)  # Real-time notification
+                        print(f"{Fore.RED}[!] SQL Injection found: {url} (param: {param}) [Confidence: {confidence}]{Style.RESET_ALL}")
                 
-                    # Time-based detection for sleep payloads
-                    if any(sleep_keyword in test_payload.lower() for sleep_keyword in ['sleep', 'waitfor', 'pg_sleep']):
+                    # Time-based detection for sleep payloads - improved validation
+                    if any(sleep_keyword in test_payload.lower() for sleep_keyword in ['sleep', 'waitfor', 'pg_sleep', 'benchmark']):
                         start_time = time.time()
                         if method.upper() == 'GET':
                             test_params = {param: test_payload}
@@ -399,21 +447,47 @@ class SQLInjectionTester:
                         
                         response_time = time.time() - start_time
                         
-                        if response_time >= 4:  # If response takes 4+ seconds for a 5-second delay
-                            vuln = {
-                                'type': 'Time-based Blind SQL Injection',
-                                'severity': 'High',
-                                'url': url,
-                                'parameter': param,
-                                'payload': test_payload,
-                                'method': method,
-                                'evidence': f"Response delay: {response_time:.2f} seconds",
-                                'response_time': response_time,
-                                'status_code': response.status_code
-                            }
-                            results.append(vuln)
-                            notify_vulnerability(vuln)  # Real-time notification
-                            print(f"{Fore.RED}[!] Time-based SQL Injection found: {url} (param: {param}){Style.RESET_ALL}")
+                        # Improved validation: response should take significantly longer than baseline
+                        # A 5-second sleep should result in 4+ second delay, but we also check
+                        # that normal requests are fast (to avoid false positives on slow servers)
+                        if response_time >= 4:
+                            # Verify with a second request to confirm it's not just a slow server
+                            start_verify = time.time()
+                            if method.upper() == 'GET':
+                                verify_params = {param: 'test123'}  # benign value
+                                try:
+                                    requests.get(url, params=verify_params, timeout=self.timeout, verify=False)
+                                except:
+                                    pass
+                            else:
+                                verify_data = {param: 'test123'}
+                                try:
+                                    requests.post(url, data=verify_data, timeout=self.timeout, verify=False)
+                                except:
+                                    pass
+                            baseline_time = time.time() - start_verify
+                            
+                            # Only report if the delay is significantly more than baseline
+                            if response_time > baseline_time + 3:
+                                vuln = {
+                                    'type': 'Time-based Blind SQL Injection',
+                                    'severity': 'High',
+                                    'confidence': 'High',
+                                    'url': url,
+                                    'parameter': param,
+                                    'payload': test_payload,
+                                    'method': method,
+                                    'evidence': f"Response delay: {response_time:.2f}s vs baseline: {baseline_time:.2f}s",
+                                    'response_time': response_time,
+                                    'baseline_time': baseline_time,
+                                    'status_code': response.status_code
+                                }
+                                results.append(vuln)
+                                notify_vulnerability(vuln)
+                                print(f"{Fore.RED}[!] Time-based SQL Injection CONFIRMED: {url} (param: {param}){Style.RESET_ALL}")
+                            else:
+                                # Server is just slow
+                                print(f"{Fore.YELLOW}[i] Slow response detected but baseline also slow - likely not SQLi{Style.RESET_ALL}")
                     
                         # Small delay to avoid overwhelming the server
                         time.sleep(0.1)

@@ -157,47 +157,87 @@ class XSSTester:
                     test_data = {param: payload}
                     response = requests.post(url, data=test_data, timeout=self.timeout, verify=False)
                 
-                # Check if payload is reflected in response
+                # Check if payload is reflected in response WITHOUT encoding
+                # This is the key fix - we need to verify the payload is unencoded
                 if payload in response.text:
+                    # Check if it's HTML-encoded (false positive)
+                    import html
+                    encoded_payload = html.escape(payload)
+                    
+                    # If the encoded version appears but not the raw version in executable context, it's likely safe
+                    if encoded_payload in response.text and payload not in response.text.replace(encoded_payload, ''):
+                        # Payload is HTML-encoded - likely NOT vulnerable, skip
+                        continue
+                    
                     contexts = self.detect_xss_context(response.text, payload)
+                    
+                    # Determine confidence based on context
+                    confidence = 'Low'
+                    severity = 'Medium'
+                    if 'html' in contexts or 'javascript' in contexts:
+                        confidence = 'High'
+                        severity = 'High'
+                    elif 'attribute' in contexts:
+                        confidence = 'Medium'
+                        severity = 'High'
+                    elif contexts == ['unknown']:
+                        confidence = 'Low'
+                        severity = 'Low'  # Downgrade if context unknown
                     
                     vuln = {
                         'type': 'Reflected XSS',
-                        'severity': 'High',
+                        'severity': severity,
+                        'confidence': confidence,
                         'url': url,
                         'parameter': param,
                         'payload': payload,
                         'method': method,
                         'contexts': contexts,
-                        'evidence': f"Payload reflected in response (contexts: {', '.join(contexts)})",
+                        'evidence': f"Payload reflected unencoded in response (contexts: {', '.join(contexts)})",
                         'response_length': len(response.text),
                         'status_code': response.status_code
                     }
                     results.append(vuln)
-                    print(f"{Fore.RED}[!] XSS found: {url} (param: {param}) - Contexts: {contexts}{Style.RESET_ALL}")
+                    print(f"{Fore.RED}[!] XSS found: {url} (param: {param}) - Contexts: {contexts} [Confidence: {confidence}]{Style.RESET_ALL}")
                 
-                # Check for potential DOM XSS indicators
-                dom_indicators = [
-                    'document.write', 'innerHTML', 'outerHTML', 'document.URL',
-                    'location.hash', 'location.search', 'window.name', 'document.referrer'
-                ]
-                
-                for indicator in dom_indicators:
-                    if indicator in response.text.lower():
-                        vuln = {
-                            'type': 'Potential DOM XSS',
-                            'severity': 'Medium',
-                            'url': url,
-                            'parameter': param,
-                            'payload': payload,
-                            'method': method,
-                            'evidence': f"DOM manipulation detected: {indicator}",
-                            'dom_sink': indicator,
-                            'status_code': response.status_code
-                        }
-                        results.append(vuln)
-                        print(f"{Fore.YELLOW}[!] Potential DOM XSS: {url} (DOM sink: {indicator}){Style.RESET_ALL}")
-                        break
+                # Check for potential DOM XSS indicators - ONLY if payload is also reflected
+                # This reduces false positives from JS libraries that naturally contain these sinks
+                if payload in response.text:
+                    dom_sinks = [
+                        ('document.write', 'High'),
+                        ('innerHTML', 'Medium'),
+                        ('outerHTML', 'Medium'),
+                        ('eval(', 'High'),
+                    ]
+                    dom_sources = [
+                        'location.hash', 'location.search', 'window.name', 
+                        'document.referrer', 'document.URL'
+                    ]
+                    
+                    # Only report if we find a sink AND the payload appears near it
+                    for sink, risk in dom_sinks:
+                        if sink.lower() in response.text.lower():
+                            # Check if payload appears within 500 chars of the sink (potential data flow)
+                            sink_pos = response.text.lower().find(sink.lower())
+                            payload_pos = response.text.find(payload)
+                            
+                            if payload_pos != -1 and abs(sink_pos - payload_pos) < 500:
+                                vuln = {
+                                    'type': 'Potential DOM XSS',
+                                    'severity': 'Low',  # Downgraded - needs manual verification
+                                    'confidence': 'Low',
+                                    'url': url,
+                                    'parameter': param,
+                                    'payload': payload,
+                                    'method': method,
+                                    'evidence': f"DOM sink '{sink}' found near reflected payload - MANUAL VERIFICATION REQUIRED",
+                                    'dom_sink': sink,
+                                    'status_code': response.status_code,
+                                    'note': 'This is a potential finding. DOM XSS requires manual analysis of JavaScript data flow.'
+                                }
+                                results.append(vuln)
+                                print(f"{Fore.YELLOW}[?] Potential DOM XSS (verify manually): {url} (sink: {sink}){Style.RESET_ALL}")
+                                break
                 
                 time.sleep(0.1)  # Small delay
                 
