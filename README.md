@@ -59,7 +59,7 @@
 ### Windows
 ```powershell
 git clone https://github.com/ankan288/zeroHack-v2.0.git
-cd zeroHack-v2.0\VulnScanner
+cd zeroHack-v2.0
 pip install -r requirements.txt
 python vulnscanner.py --help
 ```
@@ -67,7 +67,7 @@ python vulnscanner.py --help
 ### Linux/macOS
 ```bash
 git clone https://github.com/ankan288/zeroHack-v2.0.git
-cd zeroHack-v2.0/VulnScanner
+cd zeroHack-v2.0
 pip3 install -r requirements.txt
 python3 vulnscanner.py --help
 ```
@@ -162,7 +162,7 @@ python vulnscanner.py -t example.com --no-subdomain --no-port-scan
 ## 📁 Project Structure
 
 ```
-VulnScanner/
+zeroHack-v2.0/
 ├── vulnscanner.py           # Main application
 ├── requirements.txt         # Python dependencies
 ├── setup.py                 # Package setup
@@ -171,7 +171,8 @@ VulnScanner/
 ├── install-kali.sh          # Kali Linux installer
 ├── .gitignore               # Git ignore rules
 ├── __init__.py              # Package init
-└── modules/                 # Security modules (16 files)
+└── modules/                 # Security modules (17 files)
+    ├── __init__.py
     ├── sql_injection.py
     ├── xss_tester.py
     ├── ssrf_tester.py
@@ -187,8 +188,7 @@ VulnScanner/
     ├── subdomain_enum.py
     ├── web3_tester.py
     ├── additional_vulns.py
-    ├── notification_system.py
-    └── __init__.py
+    └── notification_system.py
 ```
 
 ---
