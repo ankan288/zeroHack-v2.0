@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# zeroHack v1.8 - Kali Linux Installation Script
+# zeroHack v2.0 - Kali Linux Installation Script
 # Automated installer for Kali Linux systems
 # 
 # Usage: sudo ./install-kali.sh
@@ -21,9 +21,9 @@ NC='\033[0m' # No Color
 echo -e "${CYAN}"
 cat << "EOF"
 ╔══════════════════════════════════════════════════════════════╗
-║                     ZEROHACK v1.8 INSTALLER                 ║
+║                     ZEROHACK v2.0 INSTALLER                 ║
 ║                  Kali Linux Automated Setup                 ║
-║              7 Immunefi Case Studies - $10.66M+             ║
+║              7 Immunefi Case Studies - $14M+                ║
 ╚══════════════════════════════════════════════════════════════╝
 EOF
 echo -e "${NC}"
@@ -45,7 +45,7 @@ if ! grep -qi "kali" /etc/os-release 2>/dev/null; then
     fi
 fi
 
-echo -e "${BLUE}🔄 Starting zeroHack v1.8 installation...${NC}"
+echo -e "${BLUE}🔄 Starting zeroHack v2.0 installation...${NC}"
 
 # Update package lists
 echo -e "${BLUE}📦 Updating package lists...${NC}"
@@ -94,7 +94,7 @@ echo -e "${BLUE}📂 Creating installation directory: ${INSTALL_DIR}${NC}"
 mkdir -p "$INSTALL_DIR"
 
 # Clone or download zeroHack
-echo -e "${BLUE}⬇️  Downloading zeroHack v1.8...${NC}"
+echo -e "${BLUE}⬇️  Downloading zeroHack v2.0...${NC}"
 if [ -d "$INSTALL_DIR/.git" ]; then
     echo -e "${YELLOW}   Repository already exists, updating...${NC}"
     cd "$INSTALL_DIR"
@@ -103,7 +103,7 @@ if [ -d "$INSTALL_DIR/.git" ]; then
         exit 1
     }
 else
-    git clone https://github.com/zerohack-team/zerohack.git "$INSTALL_DIR" || {
+    git clone https://github.com/ankan288/zeroHack-v2.0.git "$INSTALL_DIR" || {
         echo -e "${YELLOW}⚠️  Git clone failed, trying direct download...${NC}"
         
         # Fallback: Copy from current directory if this script is in zeroHack directory
@@ -165,7 +165,7 @@ if [ -d "/home/${SUDO_USER}/Desktop" ]; then
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=VulnScanner v1.8
+Name=zeroHack v2.0
 Comment=Comprehensive Vulnerability Assessment Tool
 Exec=gnome-terminal -- bash -c 'vulnscanner --help; echo; echo "Press Enter to exit..."; read'
 Icon=applications-security
@@ -183,7 +183,7 @@ cat > /usr/share/applications/vulnscanner.desktop << EOF
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=VulnScanner v1.8
+Name=zeroHack v2.0
 Comment=Comprehensive Vulnerability Assessment Tool with 7 Immunefi Case Studies
 Exec=gnome-terminal -- bash -c 'vulnscanner --help; echo; echo "Press Enter to exit..."; read'
 Icon=applications-security
@@ -205,9 +205,9 @@ fi
 echo -e "${BLUE}📖 Creating usage examples...${NC}"
 cat > "$USER_HOME/zerohack-examples.sh" << 'EOF'
 #!/bin/bash
-# zeroHack v1.8 - Usage Examples
+# zeroHack v2.0 - Usage Examples
 
-echo "zeroHack v1.8 - Usage Examples"
+echo "zeroHack v2.0 - Usage Examples"
 echo "==============================="
 echo
 echo "Basic Commands:"
@@ -238,13 +238,13 @@ echo -e "${GREEN}"
 cat << "EOF"
 ╔══════════════════════════════════════════════════════════════╗
 ║                  🎉 INSTALLATION COMPLETE! 🎉                ║
-║                     ZEROHACK v1.8 READY                     ║
+║                     ZEROHACK v2.0 READY                     ║
 ║              ALL 7 IMMUNEFI STUDIES INTEGRATED              ║
 ╚══════════════════════════════════════════════════════════════╝
 EOF
 echo -e "${NC}"
 
-echo -e "${GREEN}✅ zeroHack v1.8 has been successfully installed!${NC}"
+echo -e "${GREEN}✅ zeroHack v2.0 has been successfully installed!${NC}"
 echo
 echo -e "${CYAN}📍 Installation Details:${NC}"
 echo -e "   • Location: ${INSTALL_DIR}"
@@ -272,11 +272,11 @@ echo -e "   • Respect bug bounty program rules and scope"
 echo -e "   • This tool is for authorized security testing only"
 
 echo
-echo -e "${PURPLE}💰 Total Immunefi Portfolio Coverage: $10,660,000+${NC}"
-echo -e "${BLUE}📖 Documentation: https://github.com/zerohack-team/vulnscanner${NC}"
+echo -e "${PURPLE}💰 Total Immunefi Portfolio Coverage: $14,000,000+${NC}"
+echo -e "${BLUE}📖 Documentation: https://github.com/ankan288/zeroHack-v2.0${NC}"
 echo -e "${GREEN}Ready to discover the next $10 million vulnerability! 🎯${NC}"
 
 # Log installation
-echo "$(date): zeroHack v1.8 installed successfully on $(hostname)" >> /var/log/zerohack-install.log
+echo "$(date): zeroHack v2.0 installed successfully on $(hostname)" >> /var/log/zerohack-install.log
 
 exit 0
