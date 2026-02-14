@@ -777,9 +777,9 @@ class SmartContractTester:
                     
                     # Test different HTTP methods for LayerZero endpoints
                     methods = [
-                        ('POST', requests.post, payload),
-                        ('PUT', requests.put, payload),
-                        ('GET', requests.get, f"{test_url}?{payload.replace('{', '').replace('}', '').replace('\"', '').replace(':', '=').replace(',', '&')}")
+                        ('POST', self.session.post, payload),
+                        ('PUT', self.session.put, payload),
+                        ('GET', self.session.get, f"{test_url}?{payload.replace('{', '').replace('}', '').replace('\"', '').replace(':', '=').replace(',', '&')}")
                     ]
                     
                     for method_name, method_func, test_payload in methods:
@@ -888,9 +888,9 @@ class SmartContractTester:
                     
                     # Test different HTTP methods for DeFi lending endpoints
                     methods = [
-                        ('POST', requests.post, payload),
-                        ('PUT', requests.put, payload),
-                        ('GET', requests.get, f"{test_url}?{payload.replace('{', '').replace('}', '').replace('\"', '').replace(':', '=').replace(',', '&')}")
+                        ('POST', self.session.post, payload),
+                        ('PUT', self.session.put, payload),
+                        ('GET', self.session.get, f"{test_url}?{payload.replace('{', '').replace('}', '').replace('\"', '').replace(':', '=').replace(',', '&')}")
                     ]
                     
                     for method_name, method_func, test_payload in methods:
@@ -1015,9 +1015,9 @@ class SmartContractTester:
                     
                     # Test different HTTP methods for perpetual protocol endpoints
                     methods = [
-                        ('POST', requests.post, payload),
-                        ('PUT', requests.put, payload),
-                        ('GET', requests.get, f"{test_url}?{payload.replace('{', '').replace('}', '').replace('\"', '').replace(':', '=').replace(',', '&')}")
+                        ('POST', self.session.post, payload),
+                        ('PUT', self.session.put, payload),
+                        ('GET', self.session.get, f"{test_url}?{payload.replace('{', '').replace('}', '').replace('\"', '').replace(':', '=').replace(',', '&')}")
                     ]
                     
                     for method_name, method_func, test_payload in methods:
@@ -1177,9 +1177,9 @@ class SmartContractTester:
                     
                     # Test different HTTP methods for proxy contract endpoints
                     methods = [
-                        ('POST', requests.post, payload),
-                        ('PUT', requests.put, payload),
-                        ('GET', requests.get, f"{test_url}?{payload.replace('{', '').replace('}', '').replace('\"', '').replace(':', '=').replace(',', '&')}")
+                        ('POST', self.session.post, payload),
+                        ('PUT', self.session.put, payload),
+                        ('GET', self.session.get, f"{test_url}?{payload.replace('{', '').replace('}', '').replace('\"', '').replace(':', '=').replace(',', '&')}")
                     ]
                     
                     for method_name, method_func, test_payload in methods:

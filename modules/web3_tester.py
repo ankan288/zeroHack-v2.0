@@ -313,7 +313,7 @@ class Web3Tester:
                     ]
                     
                     for method, kwargs in methods:
-                        response = requests.request(method, test_url, timeout=self.timeout, **kwargs)
+                        response = self.session.request(method, test_url, timeout=self.timeout, **kwargs)
                         
                         # Check for DeFi error messages that might indicate vulnerabilities
                         for indicator in self.web3_indicators['defi_errors']:
@@ -419,7 +419,7 @@ class Web3Tester:
                     ]
                     
                     for method, kwargs in methods:
-                        response = requests.request(method, test_url, timeout=self.timeout, **kwargs)
+                        response = self.session.request(method, test_url, timeout=self.timeout, **kwargs)
                         
                         # Check for indicators of successful signature bypass
                         bypass_indicators = [
@@ -564,7 +564,7 @@ class Web3Tester:
                     ]
                     
                     for method, kwargs in test_methods:
-                        response = requests.request(method, test_url, timeout=self.timeout, **kwargs)
+                        response = self.session.request(method, test_url, timeout=self.timeout, **kwargs)
                         
                         # Look for commitment validation errors or bypasses
                         commitment_indicators = [
