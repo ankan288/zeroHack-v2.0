@@ -9,12 +9,11 @@ import ssl
 import socket
 import re
 import json
-import datetime
 import sys
+from datetime import datetime
 from urllib.parse import urlparse, urljoin
 from concurrent.futures import ThreadPoolExecutor
 from colorama import Fore, Style
-from datetime import datetime as dt
 
 # Disable SSL warnings for testing
 import urllib3
@@ -644,8 +643,8 @@ class EnhancedSecurityScanner:
         except:
             pass
 
-    import json
-    from datetime import datetime
+def run_enhanced_scan(target):
+    """Run enhanced security scan and save results"""
     
     scanner = EnhancedSecurityScanner(timeout=10, level='normal')
     findings = scanner.scan(target)
@@ -686,6 +685,6 @@ class EnhancedSecurityScanner:
     return results
 
 
-    import sys
+if __name__ == '__main__':
     target = sys.argv[1] if len(sys.argv) > 1 else 'chime.com'
     run_enhanced_scan(target)
