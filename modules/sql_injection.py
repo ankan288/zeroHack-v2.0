@@ -457,13 +457,13 @@ class SQLInjectionTester:
                                 verify_params = {param: 'test123'}  # benign value
                                 try:
                                     requests.get(url, params=verify_params, timeout=self.timeout, verify=False)
-                                except:
+                                except:  # TODO: Fix bare except - should catch specific exceptions (E722)
                                     pass
                             else:
                                 verify_data = {param: 'test123'}
                                 try:
                                     requests.post(url, data=verify_data, timeout=self.timeout, verify=False)
-                                except:
+                                except:  # TODO: Fix bare except - should catch specific exceptions (E722)
                                     pass
                             baseline_time = time.time() - start_verify
                             

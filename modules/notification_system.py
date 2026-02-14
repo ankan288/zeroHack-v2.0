@@ -88,7 +88,7 @@ class NotificationManager:
                         if severity == 'Critical':
                             time.sleep(0.1)
                             winsound.Beep(frequency, duration)  # Double beep for critical
-                    except:
+                    except:  # TODO: Fix bare except - should catch RuntimeError or OSError (E722)
                         pass
                 
                 sound_thread = threading.Thread(target=play_sound, daemon=True)
@@ -307,11 +307,15 @@ def initialize_notifications(enable_desktop=True, enable_audio=True, enable_emai
 
 def notify_vulnerability(vulnerability_details):
     """Quick function to send vulnerability notification"""
+    # NOTE: 'global' keyword not needed here - we're only reading the variable
+    # TODO: Remove 'global notification_manager' (flake8 F824)
     global notification_manager
     if notification_manager:
         notification_manager.notify_vulnerability_found(vulnerability_details)
 
 def get_notification_manager():
     """Get the global notification manager"""
+    # NOTE: 'global' keyword not needed here - we're only reading the variable
+    # TODO: Remove 'global notification_manager' (flake8 F824)
     global notification_manager
     return notification_manager
