@@ -14,7 +14,6 @@ import socket
 from concurrent.futures import ThreadPoolExecutor
 from colorama import Fore, Style
 import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class SubdomainEnum:
     def __init__(self, domain, threads=10, timeout=5, level='normal'):
@@ -101,7 +100,7 @@ class SubdomainEnum:
         for protocol in ['https', 'http']:
             try:
                 url = f"{protocol}://{subdomain}"
-                response = requests.get(url, timeout=self.timeout, verify=False, 
+                response = requests.get(url, timeout=self.timeout, verify=True, 
                                       allow_redirects=True, headers={'User-Agent': 'VulnScanner/1.0'})
                 if response.status_code:
                     self.live_subdomains.add(subdomain)

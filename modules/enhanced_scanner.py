@@ -15,9 +15,7 @@ from urllib.parse import urlparse, urljoin
 from concurrent.futures import ThreadPoolExecutor
 from colorama import Fore, Style
 
-# Disable SSL warnings for testing
 import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class EnhancedSecurityScanner:
@@ -178,7 +176,7 @@ class EnhancedSecurityScanner:
             response = requests.get(
                 url, 
                 timeout=self.timeout, 
-                verify=False,
+                verify=True,
                 headers={'User-Agent': self.user_agents['normal']}
             )
             
@@ -373,7 +371,7 @@ class EnhancedSecurityScanner:
                 response = requests.get(
                     full_url,
                     timeout=5,
-                    verify=False,
+                    verify=True,
                     headers={'User-Agent': self.user_agents['normal']},
                     allow_redirects=False
                 )
@@ -437,7 +435,7 @@ class EnhancedSecurityScanner:
             response = requests.get(
                 url,
                 timeout=self.timeout,
-                verify=False,
+                verify=True,
                 headers={'User-Agent': self.user_agents['normal']}
             )
             
@@ -504,7 +502,7 @@ class EnhancedSecurityScanner:
                 response = requests.get(
                     url,
                     timeout=self.timeout,
-                    verify=False,
+                    verify=True,
                     headers={
                         'User-Agent': self.user_agents['normal'],
                         'Origin': origin
@@ -556,7 +554,7 @@ class EnhancedSecurityScanner:
             response = requests.get(
                 url,
                 timeout=self.timeout,
-                verify=False,
+                verify=True,
                 headers={'User-Agent': self.user_agents['normal']}
             )
             
@@ -611,7 +609,7 @@ class EnhancedSecurityScanner:
                     method,
                     url,
                     timeout=5,
-                    verify=False,
+                    verify=True,
                     headers={'User-Agent': self.user_agents['normal']}
                 )
                 
@@ -635,7 +633,7 @@ class EnhancedSecurityScanner:
         
         # Check OPTIONS for allowed methods
         try:
-            response = requests.options(url, timeout=5, verify=False)
+            response = requests.options(url, timeout=5, verify=True)
             allow = response.headers.get('Allow', '')
             if allow:
                 print(f"  {Fore.CYAN}[i] Allowed methods: {allow}{Style.RESET_ALL}")
