@@ -13,7 +13,6 @@ import json
 import socket
 from concurrent.futures import ThreadPoolExecutor
 from colorama import Fore, Style
-import urllib3
 
 class SubdomainEnum:
     def __init__(self, domain, threads=10, timeout=5, level='normal'):

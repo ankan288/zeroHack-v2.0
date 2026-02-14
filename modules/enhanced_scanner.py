@@ -15,8 +15,6 @@ from urllib.parse import urlparse, urljoin
 from concurrent.futures import ThreadPoolExecutor
 from colorama import Fore, Style
 
-import urllib3
-
 
 class EnhancedSecurityScanner:
     """Comprehensive security scanner that finds real vulnerabilities"""
