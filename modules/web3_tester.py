@@ -14,6 +14,10 @@ import time
 class Web3Tester:
     def __init__(self, timeout=10, level='normal'):
         self.timeout = timeout
+        
+        # Use session for connection pooling
+        self.session = requests.Session()
+        self.session.verify = False
         self.level = level
         self.vulnerabilities = []
         
@@ -190,8 +194,8 @@ class Web3Tester:
                         'User-Agent': 'VulnScanner/1.0'
                     }
                     
-                    response = requests.post(test_url, data=rpc_payload, 
-                                           headers=headers, timeout=self.timeout, verify=False)
+                    response = self.session.post(test_url, data=rpc_payload, 
+                                           headers=headers, timeout=self.timeout)
                     
                     # Check for RPC response indicators
                     for indicator in self.web3_indicators['exposed_rpc']:
@@ -245,7 +249,7 @@ class Web3Tester:
         for path in key_paths:
             try:
                 test_url = f"{url.rstrip('/')}{path}"
-                response = requests.get(test_url, timeout=self.timeout, verify=False)
+                response = self.session.get(test_url, timeout=self.timeout)
                 
                 if response.status_code == 200:
                     # Check for private key patterns
@@ -309,8 +313,7 @@ class Web3Tester:
                     ]
                     
                     for method, kwargs in methods:
-                        response = requests.request(method, test_url, timeout=self.timeout, 
-                                                  verify=False, **kwargs)
+                        response = self.session.request(method, test_url, timeout=self.timeout, **kwargs)
                         
                         # Check for DeFi error messages that might indicate vulnerabilities
                         for indicator in self.web3_indicators['defi_errors']:
@@ -360,7 +363,7 @@ class Web3Tester:
         for path in contract_paths:
             try:
                 test_url = f"{url.rstrip('/')}{path}"
-                response = requests.get(test_url, timeout=self.timeout, verify=False)
+                response = self.session.get(test_url, timeout=self.timeout)
                 
                 if response.status_code == 200:
                     # Check for contract-related content
@@ -416,8 +419,7 @@ class Web3Tester:
                     ]
                     
                     for method, kwargs in methods:
-                        response = requests.request(method, test_url, timeout=self.timeout, 
-                                                  verify=False, **kwargs)
+                        response = self.session.request(method, test_url, timeout=self.timeout, **kwargs)
                         
                         # Check for indicators of successful signature bypass
                         bypass_indicators = [
@@ -487,8 +489,8 @@ class Web3Tester:
                 try:
                     headers = {'Content-Type': 'application/json', 'User-Agent': 'VulnScanner/1.0'}
                     
-                    response = requests.post(test_url, data=payload, headers=headers,
-                                           timeout=self.timeout, verify=False)
+                    response = self.session.post(test_url, data=payload, headers=headers,
+                                           timeout=self.timeout)
                     
                     # Cross-chain vulnerability indicators
                     cross_chain_indicators = [
@@ -562,8 +564,7 @@ class Web3Tester:
                     ]
                     
                     for method, kwargs in test_methods:
-                        response = requests.request(method, test_url, timeout=self.timeout,
-                                                  verify=False, **kwargs)
+                        response = self.session.request(method, test_url, timeout=self.timeout, **kwargs)
                         
                         # Look for commitment validation errors or bypasses
                         commitment_indicators = [

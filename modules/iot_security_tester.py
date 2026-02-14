@@ -25,6 +25,10 @@ import time
 class IoTSecurityTester:
     def __init__(self, timeout=10, level='normal'):
         self.timeout = timeout
+        
+        # Use session for connection pooling
+        self.session = requests.Session()
+        self.session.verify = False
         self.level = level
         self.vulnerabilities = []
         
@@ -181,7 +185,7 @@ class IoTSecurityTester:
             for endpoint in mqtt_endpoints:
                 try:
                     test_url = f"{url.rstrip('/')}{endpoint}"
-                    response = requests.get(test_url, timeout=self.timeout, verify=False)
+                    response = self.session.get(test_url, timeout=self.timeout)
                     
                     for indicator in self.vulnerability_indicators['mqtt_vulnerable']:
                         if indicator.lower() in response.text.lower():
@@ -268,8 +272,8 @@ class IoTSecurityTester:
                         'login': username, 'passwd': password
                     }
                     
-                    response = requests.post(test_url, data=auth_data, 
-                                           timeout=self.timeout, verify=False, allow_redirects=False)
+                    response = self.session.post(test_url, data=auth_data, 
+                                           timeout=self.timeout, allow_redirects=False)
                     
                     # Check for successful authentication indicators
                     success_indicators = ['dashboard', 'welcome', 'logout', 'admin panel', 'configuration']
@@ -294,8 +298,8 @@ class IoTSecurityTester:
                         print(f"{Fore.RED}[!] CRITICAL: Default credentials found: {test_url} ({username}:{password}){Style.RESET_ALL}")
                         
                     # Also test HTTP Basic Authentication
-                    response_basic = requests.get(test_url, auth=(username, password), 
-                                                timeout=self.timeout, verify=False)
+                    response_basic = self.session.get(test_url, auth=(username, password), 
+                                                timeout=self.timeout)
                     
                     if response_basic.status_code == 200 and response_basic.status_code != 401:
                         vuln = {
@@ -328,7 +332,7 @@ class IoTSecurityTester:
             test_url = f"{url.rstrip('/')}{endpoint}"
             
             try:
-                response = requests.get(test_url, timeout=self.timeout, verify=False)
+                response = self.session.get(test_url, timeout=self.timeout)
                 
                 # Check for IoT device vulnerability indicators
                 for indicator in self.vulnerability_indicators['iot_device_vulnerable']:
@@ -362,12 +366,12 @@ class IoTSecurityTester:
                         if payload.startswith('{'):
                             # JSON payload
                             headers = {'Content-Type': 'application/json'}
-                            response_payload = requests.post(test_url, data=payload, headers=headers,
-                                                           timeout=self.timeout, verify=False)
+                            response_payload = self.session.post(test_url, data=payload, headers=headers,
+                                                           timeout=self.timeout)
                         else:
                             # Form payload
-                            response_payload = requests.post(test_url, data={'cmd': payload},
-                                                           timeout=self.timeout, verify=False)
+                            response_payload = self.session.post(test_url, data={'cmd': payload},
+                                                           timeout=self.timeout)
                         
                         # Check for command injection indicators
                         if response_payload.status_code == 200 and ('root:' in response_payload.text or 'etc/passwd' in response_payload.text):
@@ -404,7 +408,7 @@ class IoTSecurityTester:
                 test_url = f"{url.rstrip('/')}{endpoint}"
                 
                 try:
-                    response = requests.get(test_url, timeout=self.timeout, verify=False)
+                    response = self.session.get(test_url, timeout=self.timeout)
                     
                     for indicator in self.vulnerability_indicators['industrial_vulnerable']:
                         if indicator.lower() in response.text.lower():

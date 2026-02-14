@@ -11,6 +11,7 @@ python-nmap>=0.7.1
 scapy>=2.5.0
 netaddr>=0.8.0
 dnspython>=2.4.2
+psutil>=5.9.0
 
 # Web Application Testing
 beautifulsoup4>=4.12.2

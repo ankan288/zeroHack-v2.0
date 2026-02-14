@@ -15,6 +15,10 @@ import json
 class IDORTester:
     def __init__(self, timeout=10, level='normal'):
         self.timeout = timeout
+        
+        # Use session for connection pooling
+        self.session = requests.Session()
+        self.session.verify = False
         self.level = level
         self.vulnerabilities = []
         
@@ -105,11 +109,11 @@ class IDORTester:
         # Get baseline response with original value
         try:
             if method.upper() == 'GET':
-                baseline_response = requests.get(url, params={param: original_value}, 
-                                               timeout=self.timeout, verify=False)
+                baseline_response = self.session.get(url, params={param: original_value}, 
+                                               timeout=self.timeout)
             else:
-                baseline_response = requests.post(url, data={param: original_value}, 
-                                                timeout=self.timeout, verify=False)
+                baseline_response = self.session.post(url, data={param: original_value}, 
+                                                timeout=self.timeout)
             baseline_status = baseline_response.status_code
             baseline_length = len(baseline_response.text)
         except:
@@ -142,11 +146,11 @@ class IDORTester:
         for test_value in test_values[:50]:  # Limit tests for performance
             try:
                 if method.upper() == 'GET':
-                    test_response = requests.get(url, params={param: test_value}, 
-                                               timeout=self.timeout, verify=False)
+                    test_response = self.session.get(url, params={param: test_value}, 
+                                               timeout=self.timeout)
                 else:
-                    test_response = requests.post(url, data={param: test_value}, 
-                                                timeout=self.timeout, verify=False)
+                    test_response = self.session.post(url, data={param: test_value}, 
+                                                timeout=self.timeout)
                 
                 # Analyze response differences
                 status_diff = test_response.status_code != baseline_status
@@ -249,7 +253,7 @@ class IDORTester:
             
             for endpoint in test_endpoints:
                 try:
-                    response = requests.get(endpoint, timeout=self.timeout, verify=False)
+                    response = self.session.get(endpoint, timeout=self.timeout)
                     if response.status_code in [200, 301, 302, 403]:  # Interesting responses
                         endpoints.append(endpoint)
                 except:

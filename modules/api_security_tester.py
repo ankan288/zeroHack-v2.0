@@ -25,6 +25,10 @@ import urllib.parse
 class APISecurityTester:
     def __init__(self, timeout=10, level='normal'):
         self.timeout = timeout
+        
+        # Use session for connection pooling
+        self.session = requests.Session()
+        self.session.verify = False
         self.level = level
         self.vulnerabilities = []
         
@@ -168,8 +172,8 @@ class APISecurityTester:
                         'User-Agent': 'APISecurityTester/1.0'
                     }
                     
-                    response = requests.post(test_url, data=payload, headers=headers,
-                                           timeout=self.timeout, verify=False)
+                    response = self.session.post(test_url, data=payload, headers=headers,
+                                           timeout=self.timeout)
                     
                     # Check for GraphQL exposure indicators
                     for indicator in self.vulnerability_indicators['graphql_exposed']:
@@ -212,8 +216,8 @@ class APISecurityTester:
                         'User-Agent': 'APISecurityTester/1.0'
                     }
                     
-                    response = requests.get(test_url, headers=headers,
-                                          timeout=self.timeout, verify=False)
+                    response = self.session.get(test_url, headers=headers,
+                                          timeout=self.timeout)
                     
                     # Check for JWT vulnerability indicators
                     for indicator in self.vulnerability_indicators['jwt_vulnerable']:
@@ -266,8 +270,8 @@ class APISecurityTester:
             
             for payload in mass_config['payloads']:
                 try:
-                    response = requests.post(test_url, json=json.loads(payload) if payload.startswith('{') else {'data': payload},
-                                           timeout=self.timeout, verify=False)
+                    response = self.session.post(test_url, json=json.loads(payload) if payload.startswith('{') else {'data': payload},
+                                           timeout=self.timeout)
                     
                     # Check for mass assignment indicators
                     for indicator in self.vulnerability_indicators['mass_assignment']:
@@ -306,8 +310,8 @@ class APISecurityTester:
             try:
                 rapid_requests = []
                 for i in range(10):
-                    response = requests.post(test_url, json={'test': 'rate_limit'},
-                                           timeout=self.timeout, verify=False)
+                    response = self.session.post(test_url, json={'test': 'rate_limit'},
+                                           timeout=self.timeout)
                     rapid_requests.append(response.status_code)
                     time.sleep(0.1)
                 
@@ -317,8 +321,8 @@ class APISecurityTester:
                         try:
                             if 'headers' in payload:
                                 headers_data = json.loads(payload).get('headers', {})
-                                response = requests.post(test_url, json={'bypass': 'test'}, 
-                                                       headers=headers_data, timeout=self.timeout, verify=False)
+                                response = self.session.post(test_url, json={'bypass': 'test'}, 
+                                                       headers=headers_data, timeout=self.timeout)
                                 
                                 if response.status_code == 200:
                                     vuln = {
@@ -351,7 +355,7 @@ class APISecurityTester:
             test_url = f"{url.rstrip('/')}{endpoint}"
             
             try:
-                response = requests.get(test_url, timeout=self.timeout, verify=False)
+                response = self.session.get(test_url, timeout=self.timeout)
                 
                 # Check for version exposure indicators
                 for indicator in self.vulnerability_indicators['api_version_exploit']:

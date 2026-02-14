@@ -1000,12 +1000,34 @@ class PortScanner:
         linux_ports = [22]
         linux_services = ['OpenSSH', 'Apache', 'nginx']
         
-        # Count indicators
-        windows_score = sum(1 for port in open_ports if port['port'] in windows_ports)
-        windows_score += sum(1 for port in open_ports for service in windows_services if service.lower() in port.get('banner', '').lower())
+        # Convert service lists to lowercase sets for efficient lookup
+        windows_services_lower = {s.lower() for s in windows_services}
+        linux_services_lower = {s.lower() for s in linux_services}
         
-        linux_score = sum(1 for port in open_ports if port['port'] in linux_ports)
-        linux_score += sum(1 for port in open_ports for service in linux_services if service.lower() in port.get('banner', '').lower())
+        # Count indicators with single pass through ports
+        windows_score = 0
+        linux_score = 0
+        
+        for port in open_ports:
+            # Check port numbers
+            if port['port'] in windows_ports:
+                windows_score += 1
+            if port['port'] in linux_ports:
+                linux_score += 1
+            
+            # Check banner against services (single pass, no nested loops)
+            # Note: A port can match both Windows and Linux indicators (e.g., Apache can run on both)
+            # This is intentional to handle ambiguous services - final OS is determined by higher score
+            banner_lower = port.get('banner', '').lower()
+            if banner_lower:
+                for service in windows_services_lower:
+                    if service in banner_lower:
+                        windows_score += 1
+                        break  # Count once per port for Windows
+                for service in linux_services_lower:
+                    if service in banner_lower:
+                        linux_score += 1
+                        break  # Count once per port for Linux
         
         if windows_score > linux_score:
             return "Windows"

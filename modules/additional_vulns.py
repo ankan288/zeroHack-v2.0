@@ -25,6 +25,10 @@ import urllib.parse
 class AdditionalVulnTester:
     def __init__(self, timeout=10, level='normal'):
         self.timeout = timeout
+        
+        # Use session for connection pooling
+        self.session = requests.Session()
+        self.session.verify = False
         self.level = level
         self.vulnerabilities = []
         
@@ -126,8 +130,8 @@ class AdditionalVulnTester:
         for payload in self.directory_traversal_payloads:
             try:
                 # Test GET method
-                response = requests.get(url, params={param: payload}, 
-                                      timeout=self.timeout, verify=False)
+                response = self.session.get(url, params={param: payload}, 
+                                      timeout=self.timeout)
                 
                 # Check for file content indicators
                 traversal_indicators = [
@@ -164,8 +168,8 @@ class AdditionalVulnTester:
         
         for payload in self.file_inclusion_payloads:
             try:
-                response = requests.get(url, params={param: payload}, 
-                                      timeout=self.timeout, verify=False)
+                response = self.session.get(url, params={param: payload}, 
+                                      timeout=self.timeout)
                 
                 # LFI indicators
                 lfi_indicators = [
@@ -211,8 +215,8 @@ class AdditionalVulnTester:
         for payload in self.xxe_payloads:
             try:
                 headers = {'Content-Type': 'application/xml'}
-                response = requests.post(url, data=payload, headers=headers,
-                                       timeout=self.timeout, verify=False)
+                response = self.session.post(url, data=payload, headers=headers,
+                                       timeout=self.timeout)
                 
                 # XXE indicators
                 xxe_indicators = [
@@ -247,7 +251,7 @@ class AdditionalVulnTester:
         
         try:
             # Check if forms exist and lack CSRF protection
-            response = requests.get(url, timeout=self.timeout, verify=False)
+            response = self.session.get(url, timeout=self.timeout)
             
             # Look for forms
             forms = re.findall(r'<form[^>]*>(.*?)</form>', response.text, re.DOTALL | re.IGNORECASE)
@@ -278,7 +282,7 @@ class AdditionalVulnTester:
         results = []
         
         try:
-            response = requests.get(url, timeout=self.timeout, verify=False)
+            response = self.session.get(url, timeout=self.timeout)
             
             for header, description in self.security_headers.items():
                 if header not in response.headers:
@@ -314,7 +318,7 @@ class AdditionalVulnTester:
         for origin in malicious_origins:
             try:
                 headers = {'Origin': origin}
-                response = requests.get(url, headers=headers, timeout=self.timeout, verify=False)
+                response = self.session.get(url, headers=headers, timeout=self.timeout)
                 
                 cors_header = response.headers.get('Access-Control-Allow-Origin', '')
                 
@@ -354,7 +358,7 @@ class AdditionalVulnTester:
         for filename, content, content_type in malicious_files:
             try:
                 files = {'file': (filename, content, content_type)}
-                response = requests.post(url, files=files, timeout=self.timeout, verify=False)
+                response = self.session.post(url, files=files, timeout=self.timeout)
                 
                 # Check for successful upload indicators
                 if any(indicator in response.text.lower() for indicator in 
@@ -390,7 +394,7 @@ class AdditionalVulnTester:
         for path in info_paths:
             try:
                 test_url = f"{url.rstrip('/')}{path}"
-                response = requests.get(test_url, timeout=self.timeout, verify=False)
+                response = self.session.get(test_url, timeout=self.timeout)
                 
                 if response.status_code == 200:
                     # Check for sensitive information

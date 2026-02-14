@@ -7,6 +7,7 @@ Tests for reflected, stored, and DOM-based XSS vulnerabilities
 import requests
 import re
 import urllib.parse
+import html
 from concurrent.futures import ThreadPoolExecutor
 from colorama import Fore, Style
 import time
@@ -15,6 +16,10 @@ import json
 class XSSTester:
     def __init__(self, timeout=10, level='normal'):
         self.timeout = timeout
+        
+        # Use session for connection pooling
+        self.session = requests.Session()
+        self.session.verify = False
         self.level = level
         self.vulnerabilities = []
         
@@ -152,16 +157,15 @@ class XSSTester:
             try:
                 if method.upper() == 'GET':
                     test_params = {param: payload}
-                    response = requests.get(url, params=test_params, timeout=self.timeout, verify=False)
+                    response = self.session.get(url, params=test_params, timeout=self.timeout)
                 else:
                     test_data = {param: payload}
-                    response = requests.post(url, data=test_data, timeout=self.timeout, verify=False)
+                    response = self.session.post(url, data=test_data, timeout=self.timeout)
                 
                 # Check if payload is reflected in response WITHOUT encoding
                 # This is the key fix - we need to verify the payload is unencoded
                 if payload in response.text:
                     # Check if it's HTML-encoded (false positive)
-                    import html
                     encoded_payload = html.escape(payload)
                     
                     # If the encoded version appears but not the raw version in executable context, it's likely safe
@@ -256,8 +260,8 @@ class XSSTester:
         
         try:
             # Submit the payload
-            response = requests.post(url, data={**form_data, **{'comment': stored_payload, 'message': stored_payload, 'content': stored_payload}}, 
-                                   timeout=self.timeout, verify=False)
+            response = self.session.post(url, data={**form_data, **{'comment': stored_payload, 'message': stored_payload, 'content': stored_payload}}, 
+                                   timeout=self.timeout)
             
             # Check if payload is immediately reflected (stored)
             if stored_payload in response.text or marker in response.text:
@@ -275,7 +279,7 @@ class XSSTester:
             
             # Try to retrieve the page again to see if payload persists
             time.sleep(1)
-            check_response = requests.get(url, timeout=self.timeout, verify=False)
+            check_response = self.session.get(url, timeout=self.timeout)
             if stored_payload in check_response.text or marker in check_response.text:
                 vuln = {
                     'type': 'Confirmed Stored XSS',
@@ -328,7 +332,7 @@ class XSSTester:
             if self.level in ['moderate', 'extreme']:
                 try:
                     # Look for forms that might store data
-                    response = requests.get(url, timeout=self.timeout, verify=False)
+                    response = self.session.get(url, timeout=self.timeout)
                     if any(form_indicator in response.text.lower() for form_indicator in 
                           ['<form', 'comment', 'message', 'post', 'submit', 'feedback']):
                         stored_vulns = self.test_stored_xss(url, {})

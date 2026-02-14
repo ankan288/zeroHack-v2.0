@@ -9,6 +9,8 @@ import ssl
 import socket
 import re
 import json
+import sys
+from datetime import datetime
 from urllib.parse import urlparse, urljoin
 from concurrent.futures import ThreadPoolExecutor
 from colorama import Fore, Style
@@ -310,14 +312,12 @@ class EnhancedSecurityScanner:
                             'remediation': 'Use ciphers with at least 128-bit encryption'
                         }
                         self.findings.append(finding)
-                        print(f"  {Fore.RED}[!] Weak cipher: {cipher_name}{Style.RESET_ALL}")
                     
                     # Check certificate expiry
-                    import datetime
                     not_after = cert.get('notAfter')
                     if not_after:
-                        expiry = datetime.datetime.strptime(not_after, '%b %d %H:%M:%S %Y %Z')
-                        days_left = (expiry - datetime.datetime.now()).days
+                        expiry = datetime.strptime(not_after, '%b %d %H:%M:%S %Y %Z')
+                        days_left = (expiry - datetime.now()).days
                         
                         if days_left < 0:
                             finding = {
@@ -642,11 +642,8 @@ class EnhancedSecurityScanner:
         except:
             pass
 
-
 def run_enhanced_scan(target):
     """Run enhanced security scan and save results"""
-    import json
-    from datetime import datetime
     
     scanner = EnhancedSecurityScanner(timeout=10, level='normal')
     findings = scanner.scan(target)
@@ -688,6 +685,5 @@ def run_enhanced_scan(target):
 
 
 if __name__ == '__main__':
-    import sys
     target = sys.argv[1] if len(sys.argv) > 1 else 'chime.com'
     run_enhanced_scan(target)

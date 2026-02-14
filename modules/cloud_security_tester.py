@@ -23,6 +23,10 @@ import xml.etree.ElementTree as ET
 class CloudSecurityTester:
     def __init__(self, timeout=10, level='normal'):
         self.timeout = timeout
+        
+        # Use session for connection pooling
+        self.session = requests.Session()
+        self.session.verify = False
         self.level = level
         self.vulnerabilities = []
         
@@ -185,7 +189,7 @@ class CloudSecurityTester:
             test_url = f"{url.rstrip('/')}{endpoint}"
             
             try:
-                response = requests.get(test_url, timeout=self.timeout, verify=False)
+                response = self.session.get(test_url, timeout=self.timeout)
                 
                 # Check for AWS exposure indicators
                 for indicator in self.vulnerability_indicators['aws_exposure']:
@@ -234,7 +238,7 @@ class CloudSecurityTester:
             
             for s3_url in s3_urls:
                 try:
-                    response = requests.get(s3_url, timeout=self.timeout, verify=False)
+                    response = self.session.get(s3_url, timeout=self.timeout)
                     
                     if response.status_code == 200 and 'ListBucketResult' in response.text:
                         vuln = {
@@ -266,7 +270,7 @@ class CloudSecurityTester:
             test_url = f"{url.rstrip('/')}{endpoint}"
             
             try:
-                response = requests.get(test_url, timeout=self.timeout, verify=False)
+                response = self.session.get(test_url, timeout=self.timeout)
                 
                 # Check for Azure exposure indicators
                 for indicator in self.vulnerability_indicators['azure_exposure']:
@@ -301,7 +305,7 @@ class CloudSecurityTester:
             test_url = f"{url.rstrip('/')}{endpoint}"
             
             try:
-                response = requests.get(test_url, timeout=self.timeout, verify=False)
+                response = self.session.get(test_url, timeout=self.timeout)
                 
                 # Check for GCP exposure indicators
                 for indicator in self.vulnerability_indicators['gcp_exposure']:
@@ -336,7 +340,7 @@ class CloudSecurityTester:
             test_url = f"{url.rstrip('/')}{endpoint}"
             
             try:
-                response = requests.get(test_url, timeout=self.timeout, verify=False)
+                response = self.session.get(test_url, timeout=self.timeout)
                 
                 # Check for container vulnerability indicators
                 for indicator in self.vulnerability_indicators['container_vulnerable']:
@@ -371,7 +375,7 @@ class CloudSecurityTester:
             test_url = f"{url.rstrip('/')}{endpoint}"
             
             try:
-                response = requests.get(test_url, timeout=self.timeout, verify=False)
+                response = self.session.get(test_url, timeout=self.timeout)
                 
                 # Check for serverless vulnerability indicators
                 for indicator in self.vulnerability_indicators['serverless_vulnerable']:
@@ -411,7 +415,7 @@ class CloudSecurityTester:
             try:
                 # Try SSRF to metadata service
                 ssrf_payload = {'url': metadata_url, 'target': metadata_url}
-                response = requests.post(f"{url}/api", json=ssrf_payload, timeout=self.timeout, verify=False)
+                response = self.session.post(f"{url}/api", json=ssrf_payload, timeout=self.timeout)
                 
                 if 'ami-id' in response.text or 'instance-id' in response.text:  # AWS
                     vuln = {
