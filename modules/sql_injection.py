@@ -23,6 +23,10 @@ except ImportError:
         pass  # No-op if notifications not available
 
 class SQLInjectionTester:
+    # Early exit configuration - stop testing parameter after finding N vulnerabilities
+    MAX_VULNS_PER_PARAM_NORMAL = 3
+    MAX_VULNS_PER_PARAM_INTENSIVE = 5
+    
     def __init__(self, timeout=10, level='normal'):
         self.timeout = timeout
         self.level = level
@@ -368,6 +372,8 @@ class SQLInjectionTester:
         results = []
         
         # Cache baseline response time for this parameter to avoid redundant requests
+        # Note: baseline_time is only calculated when time-based payloads are tested
+        # If early exit occurs before time-based payloads, baseline remains None (acceptable)
         baseline_time = None
         
         payloads_to_test = self.basic_payloads.copy()
@@ -386,7 +392,7 @@ class SQLInjectionTester:
             payloads_to_test.extend(self.order_by_payloads)
         
         # Early exit counter - stop after finding a few vulnerabilities
-        max_vulns_per_param = 3 if self.level == 'normal' else 5
+        max_vulns_per_param = self.MAX_VULNS_PER_PARAM_NORMAL if self.level == 'normal' else self.MAX_VULNS_PER_PARAM_INTENSIVE
         
         for payload in payloads_to_test:
             # Early exit if we found enough vulnerabilities for this parameter

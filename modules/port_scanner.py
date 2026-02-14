@@ -1016,16 +1016,18 @@ class PortScanner:
                 linux_score += 1
             
             # Check banner against services (single pass, no nested loops)
+            # Note: A port can match both Windows and Linux indicators (e.g., Apache can run on both)
+            # This is intentional to handle ambiguous services - final OS is determined by higher score
             banner_lower = port.get('banner', '').lower()
             if banner_lower:
                 for service in windows_services_lower:
                     if service in banner_lower:
                         windows_score += 1
-                        break  # Count once per port
+                        break  # Count once per port for Windows
                 for service in linux_services_lower:
                     if service in banner_lower:
                         linux_score += 1
-                        break  # Count once per port
+                        break  # Count once per port for Linux
         
         if windows_score > linux_score:
             return "Windows"

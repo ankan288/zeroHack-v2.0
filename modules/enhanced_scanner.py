@@ -314,11 +314,10 @@ class EnhancedSecurityScanner:
                         self.findings.append(finding)
                     
                     # Check certificate expiry
-                    import datetime
                     not_after = cert.get('notAfter')
                     if not_after:
-                        expiry = datetime.datetime.strptime(not_after, '%b %d %H:%M:%S %Y %Z')
-                        days_left = (expiry - datetime.datetime.now()).days
+                        expiry = datetime.strptime(not_after, '%b %d %H:%M:%S %Y %Z')
+                        days_left = (expiry - datetime.now()).days
                         
                         if days_left < 0:
                             finding = {
