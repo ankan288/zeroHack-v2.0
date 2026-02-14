@@ -9,9 +9,12 @@ import ssl
 import socket
 import re
 import json
+import datetime
+import sys
 from urllib.parse import urlparse, urljoin
 from concurrent.futures import ThreadPoolExecutor
 from colorama import Fore, Style
+from datetime import datetime as dt
 
 # Disable SSL warnings for testing
 import urllib3
@@ -310,7 +313,6 @@ class EnhancedSecurityScanner:
                             'remediation': 'Use ciphers with at least 128-bit encryption'
                         }
                         self.findings.append(finding)
-                        print(f"  {Fore.RED}[!] Weak cipher: {cipher_name}{Style.RESET_ALL}")
                     
                     # Check certificate expiry
                     import datetime
@@ -642,9 +644,6 @@ class EnhancedSecurityScanner:
         except:
             pass
 
-
-def run_enhanced_scan(target):
-    """Run enhanced security scan and save results"""
     import json
     from datetime import datetime
     
@@ -687,7 +686,6 @@ def run_enhanced_scan(target):
     return results
 
 
-if __name__ == '__main__':
     import sys
     target = sys.argv[1] if len(sys.argv) > 1 else 'chime.com'
     run_enhanced_scan(target)

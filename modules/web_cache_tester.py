@@ -21,6 +21,10 @@ import hashlib
 class WebCacheTester:
     def __init__(self, timeout=10, level='normal'):
         self.timeout = timeout
+        
+        # Use session for connection pooling
+        self.session = requests.Session()
+        self.session.verify = False
         self.level = level
         self.vulnerabilities = []
         
@@ -174,12 +178,12 @@ class WebCacheTester:
                 
                 print(f"    {Fore.CYAN}[*] Testing {header_name}: {poisoned_value}{Style.RESET_ALL}")
                 
-                response1 = requests.get(base_url, headers=poison_headers, timeout=self.timeout)
+                response1 = self.session.get(base_url, headers=poison_headers, timeout=self.timeout)
                 time.sleep(0.5)  # Allow cache to update
                 
                 # Step 2: Send clean request to check if cache is poisoned
                 clean_headers = {'User-Agent': 'zeroHack-CacheTester-Clean/1.0'}
-                response2 = requests.get(base_url, headers=clean_headers, timeout=self.timeout)
+                response2 = self.session.get(base_url, headers=clean_headers, timeout=self.timeout)
                 
                 # Check if poisoned content appears in clean response
                 if self.is_cache_poisoned(response1, response2, unique_marker, poisoned_value):
@@ -219,11 +223,11 @@ class WebCacheTester:
                     print(f"    {Fore.CYAN}[*] Testing: {sensitive_path};cache_bypass{extension}{Style.RESET_ALL}")
                     
                     # Test bypass request
-                    bypass_response = requests.get(bypass_url, timeout=self.timeout)
+                    bypass_response = self.session.get(bypass_url, timeout=self.timeout)
                     
                     # Compare with normal request
                     try:
-                        normal_response = requests.get(normal_url, timeout=self.timeout)
+                        normal_response = self.session.get(normal_url, timeout=self.timeout)
                     except:
                         normal_response = None
                     
@@ -266,11 +270,11 @@ class WebCacheTester:
                 print(f"    {Fore.CYAN}[*] Testing: {poisoned_payload}{Style.RESET_ALL}")
                 
                 # Send poisoning request
-                response1 = requests.get(poison_url, timeout=self.timeout)
+                response1 = self.session.get(poison_url, timeout=self.timeout)
                 time.sleep(0.5)
                 
                 # Send clean request
-                response2 = requests.get(base_url, timeout=self.timeout)
+                response2 = self.session.get(base_url, timeout=self.timeout)
                 
                 if self.is_cache_poisoned(response1, response2, unique_marker, poisoned_payload):
                     vulnerabilities.append({
@@ -309,11 +313,11 @@ class WebCacheTester:
                 print(f"    {Fore.CYAN}[*] Testing unkeyed parameter: {param_name}{Style.RESET_ALL}")
                 
                 # Send poisoning request
-                response1 = requests.get(poison_url, timeout=self.timeout)
+                response1 = self.session.get(poison_url, timeout=self.timeout)
                 time.sleep(0.5)
                 
                 # Send request without the parameter
-                response2 = requests.get(base_url, timeout=self.timeout)
+                response2 = self.session.get(base_url, timeout=self.timeout)
                 
                 if self.is_cache_poisoned(response1, response2, unique_marker, xss_payload):
                     vulnerabilities.append({
@@ -361,8 +365,8 @@ class WebCacheTester:
                 print(f"    {Fore.CYAN}[*] Testing {test_type}: {test_url}{Style.RESET_ALL}")
                 
                 # Test if different URLs share same cache key
-                response1 = requests.get(test_url, timeout=self.timeout)
-                response2 = requests.get(base_url, timeout=self.timeout)
+                response1 = self.session.get(test_url, timeout=self.timeout)
+                response2 = self.session.get(base_url, timeout=self.timeout)
                 
                 if self.is_cache_shared(response1, response2):
                     vulnerabilities.append({
@@ -516,7 +520,7 @@ class WebCacheTester:
                         print(f"    {Fore.CYAN}[*] Testing cache deception: {deception_url}{Style.RESET_ALL}")
                         
                         # Test deception request
-                        deception_response = requests.get(
+                        deception_response = self.session.get(
                             deception_url,
                             timeout=self.timeout,
                             allow_redirects=False
@@ -524,7 +528,7 @@ class WebCacheTester:
                         
                         # Test normal endpoint for comparison
                         normal_url = base_url + endpoint
-                        normal_response = requests.get(
+                        normal_response = self.session.get(
                             normal_url,
                             timeout=self.timeout,
                             allow_redirects=False

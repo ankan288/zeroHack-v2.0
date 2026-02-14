@@ -18,6 +18,10 @@ import base64
 class RCETester:
     def __init__(self, timeout=15, level='normal'):
         self.timeout = timeout
+        
+        # Use session for connection pooling
+        self.session = requests.Session()
+        self.session.verify = False
         self.level = level
         self.vulnerabilities = []
         
@@ -176,10 +180,10 @@ class RCETester:
                 
                 if method.upper() == 'GET':
                     test_params = {param: payload}
-                    response = requests.get(url, params=test_params, timeout=self.timeout, verify=False)
+                    response = self.session.get(url, params=test_params, timeout=self.timeout)
                 else:
                     test_data = {param: payload}
-                    response = requests.post(url, data=test_data, timeout=self.timeout, verify=False)
+                    response = self.session.post(url, data=test_data, timeout=self.timeout)
                 
                 response_time = time.time() - start_time
                 
@@ -280,7 +284,7 @@ class RCETester:
         for filename, content, content_type in shells:
             try:
                 files = {'file': (filename, content, content_type)}
-                response = requests.post(url, files=files, timeout=self.timeout, verify=False)
+                response = self.session.post(url, files=files, timeout=self.timeout)
                 
                 # Check if upload was successful
                 if response.status_code == 200 and 'success' in response.text.lower():

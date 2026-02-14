@@ -15,6 +15,10 @@ import threading
 class SSRFTester:
     def __init__(self, timeout=10, level='normal'):
         self.timeout = timeout
+        
+        # Use session for connection pooling
+        self.session = requests.Session()
+        self.session.verify = False
         self.level = level
         self.vulnerabilities = []
         
@@ -148,11 +152,11 @@ class SSRFTester:
         # Get baseline response
         try:
             if method.upper() == 'GET':
-                baseline = requests.get(url, params={param: 'http://example.com'}, 
-                                      timeout=self.timeout, verify=False)
+                baseline = self.session.get(url, params={param: 'http://example.com'}, 
+                                      timeout=self.timeout)
             else:
-                baseline = requests.post(url, data={param: 'http://example.com'}, 
-                                       timeout=self.timeout, verify=False)
+                baseline = self.session.post(url, data={param: 'http://example.com'}, 
+                                       timeout=self.timeout)
         except:
             baseline = None
         
@@ -162,10 +166,10 @@ class SSRFTester:
                 
                 if method.upper() == 'GET':
                     test_params = {param: payload}
-                    response = requests.get(url, params=test_params, timeout=self.timeout, verify=False)
+                    response = self.session.get(url, params=test_params, timeout=self.timeout)
                 else:
                     test_data = {param: payload}
-                    response = requests.post(url, data=test_data, timeout=self.timeout, verify=False)
+                    response = self.session.post(url, data=test_data, timeout=self.timeout)
                 
                 response_time = time.time() - start_time
                 

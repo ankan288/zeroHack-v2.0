@@ -22,6 +22,10 @@ import urllib.parse
 class MobileSecurityTester:
     def __init__(self, timeout=10, level='normal'):
         self.timeout = timeout
+        
+        # Use session for connection pooling
+        self.session = requests.Session()
+        self.session.verify = False
         self.level = level
         self.vulnerabilities = []
         
@@ -161,10 +165,10 @@ class MobileSecurityTester:
                     for method in methods:
                         if method == requests.post:
                             response = method(test_url, data={'payload': payload}, 
-                                            headers=headers, timeout=self.timeout, verify=False)
+                                            headers=headers, timeout=self.timeout)
                         else:
                             response = method(f"{test_url}?payload={urllib.parse.quote(payload)}", 
-                                            headers=headers, timeout=self.timeout, verify=False)
+                                            headers=headers, timeout=self.timeout)
                         
                         # Check for Android vulnerability indicators
                         for indicator in self.vulnerability_indicators['android_vulnerable']:
@@ -219,8 +223,8 @@ class MobileSecurityTester:
                 try:
                     headers = self.mobile_headers['ios'].copy()
                     
-                    response = requests.get(f"{test_url}?payload={urllib.parse.quote(payload)}", 
-                                          headers=headers, timeout=self.timeout, verify=False)
+                    response = self.session.get(f"{test_url}?payload={urllib.parse.quote(payload)}", 
+                                          headers=headers, timeout=self.timeout)
                     
                     # Check for iOS vulnerability indicators
                     for indicator in self.vulnerability_indicators['ios_vulnerable']:
@@ -278,8 +282,8 @@ class MobileSecurityTester:
                         headers = self.mobile_headers[platform].copy()
                         headers['Content-Type'] = 'application/json'
                         
-                        response = requests.post(test_url, data=payload, headers=headers,
-                                               timeout=self.timeout, verify=False)
+                        response = self.session.post(test_url, data=payload, headers=headers,
+                                               timeout=self.timeout)
                         
                         # Check for mobile API vulnerability indicators
                         for indicator in self.vulnerability_indicators['mobile_api_vulnerable']:
@@ -338,8 +342,8 @@ class MobileSecurityTester:
                     for platform in ['android', 'ios']:
                         headers = self.mobile_headers[platform].copy()
                         
-                        response = requests.get(f"{test_url}?content={urllib.parse.quote(payload)}", 
-                                              headers=headers, timeout=self.timeout, verify=False)
+                        response = self.session.get(f"{test_url}?content={urllib.parse.quote(payload)}", 
+                                              headers=headers, timeout=self.timeout)
                         
                         # Check for WebView vulnerability indicators
                         for indicator in self.vulnerability_indicators['webview_vulnerable']:
@@ -402,8 +406,8 @@ class MobileSecurityTester:
             
             for pattern in deep_link_patterns:
                 try:
-                    response = requests.get(f"{test_url}?link={urllib.parse.quote(pattern)}", 
-                                          timeout=self.timeout, verify=False)
+                    response = self.session.get(f"{test_url}?link={urllib.parse.quote(pattern)}", 
+                                          timeout=self.timeout)
                     
                     # Check for successful deep link processing
                     if response.status_code == 200 and ('redirect' in response.text.lower() or 'open' in response.text.lower()):

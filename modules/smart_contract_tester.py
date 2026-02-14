@@ -46,6 +46,10 @@ import hashlib
 class SmartContractTester:
     def __init__(self, timeout=10, level='normal'):
         self.timeout = timeout
+        
+        # Use session for connection pooling
+        self.session = requests.Session()
+        self.session.verify = False
         self.level = level
         self.vulnerabilities = []
         
@@ -519,8 +523,8 @@ class SmartContractTester:
                         'User-Agent': 'SmartContractTester/1.0'
                     }
                     
-                    response = requests.post(test_url, data=payload, headers=headers,
-                                           timeout=self.timeout, verify=False)
+                    response = self.session.post(test_url, data=payload, headers=headers,
+                                           timeout=self.timeout)
                     
                     # Check for signature bypass indicators
                     for indicator in self.vulnerability_indicators['signature_bypass']:
@@ -574,8 +578,8 @@ class SmartContractTester:
             
             for payload in access_config['payloads']:
                 try:
-                    response = requests.post(test_url, json=json.loads(payload) if payload.startswith('{') else {'data': payload},
-                                           timeout=self.timeout, verify=False)
+                    response = self.session.post(test_url, json=json.loads(payload) if payload.startswith('{') else {'data': payload},
+                                           timeout=self.timeout)
                     
                     # Check for access control bypass indicators
                     for indicator in self.vulnerability_indicators['access_control_bypass']:
@@ -611,8 +615,8 @@ class SmartContractTester:
             
             for payload in reentrancy_config['payloads']:
                 try:
-                    response = requests.post(test_url, json=json.loads(payload) if payload.startswith('{') else {'data': payload},
-                                           timeout=self.timeout, verify=False)
+                    response = self.session.post(test_url, json=json.loads(payload) if payload.startswith('{') else {'data': payload},
+                                           timeout=self.timeout)
                     
                     # Check for reentrancy indicators
                     for indicator in self.vulnerability_indicators['reentrancy_success']:
@@ -693,8 +697,8 @@ class SmartContractTester:
             for payload in all_payloads:
                 try:
                     headers = {'Content-Type': 'application/json'}
-                    response = requests.post(test_url, data=payload, headers=headers,
-                                           timeout=self.timeout, verify=False)
+                    response = self.session.post(test_url, data=payload, headers=headers,
+                                           timeout=self.timeout)
                     
                     # Check for ERC777 vulnerability indicators
                     for indicator in self.vulnerability_indicators['erc777_vulnerabilities']:
@@ -780,9 +784,9 @@ class SmartContractTester:
                     
                     for method_name, method_func, test_payload in methods:
                         if method_name == 'GET':
-                            response = method_func(test_payload, headers=headers, timeout=self.timeout, verify=False)
+                            response = method_func(test_payload, headers=headers, timeout=self.timeout)
                         else:
-                            response = method_func(test_url, data=test_payload, headers=headers, timeout=self.timeout, verify=False)
+                            response = method_func(test_url, data=test_payload, headers=headers, timeout=self.timeout)
                         
                         # Check for LayerZero vulnerability indicators
                         for indicator in self.vulnerability_indicators['layerzero_vulnerabilities']:
@@ -891,9 +895,9 @@ class SmartContractTester:
                     
                     for method_name, method_func, test_payload in methods:
                         if method_name == 'GET':
-                            response = method_func(test_payload, headers=headers, timeout=self.timeout, verify=False)
+                            response = method_func(test_payload, headers=headers, timeout=self.timeout)
                         else:
-                            response = method_func(test_url, data=test_payload, headers=headers, timeout=self.timeout, verify=False)
+                            response = method_func(test_url, data=test_payload, headers=headers, timeout=self.timeout)
                         
                         # Check for DeFi lending vulnerability indicators
                         for indicator in self.vulnerability_indicators['defi_lending_vulnerabilities']:
@@ -1018,9 +1022,9 @@ class SmartContractTester:
                     
                     for method_name, method_func, test_payload in methods:
                         if method_name == 'GET':
-                            response = method_func(test_payload, headers=headers, timeout=self.timeout, verify=False)
+                            response = method_func(test_payload, headers=headers, timeout=self.timeout)
                         else:
-                            response = method_func(test_url, data=test_payload, headers=headers, timeout=self.timeout, verify=False)
+                            response = method_func(test_url, data=test_payload, headers=headers, timeout=self.timeout)
                         
                         # Check for perpetual bad debt vulnerability indicators
                         for indicator in self.vulnerability_indicators['perpetual_bad_debt_vulnerabilities']:
@@ -1180,9 +1184,9 @@ class SmartContractTester:
                     
                     for method_name, method_func, test_payload in methods:
                         if method_name == 'GET':
-                            response = method_func(test_payload, headers=headers, timeout=self.timeout, verify=False)
+                            response = method_func(test_payload, headers=headers, timeout=self.timeout)
                         else:
-                            response = method_func(test_url, data=test_payload, headers=headers, timeout=self.timeout, verify=False)
+                            response = method_func(test_url, data=test_payload, headers=headers, timeout=self.timeout)
                         
                         # Check for proxy vulnerability indicators
                         for indicator in self.vulnerability_indicators['proxy_vulnerabilities']:
@@ -1488,8 +1492,8 @@ class SmartContractTester:
             
             for payload in oracle_config['payloads']:
                 try:
-                    response = requests.post(test_url, json=json.loads(payload) if payload.startswith('{') else {'data': payload},
-                                           timeout=self.timeout, verify=False)
+                    response = self.session.post(test_url, json=json.loads(payload) if payload.startswith('{') else {'data': payload},
+                                           timeout=self.timeout)
                     
                     # Check for oracle manipulation indicators
                     for indicator in self.vulnerability_indicators['oracle_manipulation']:
@@ -1525,8 +1529,8 @@ class SmartContractTester:
             
             for payload in flash_config['payloads']:
                 try:
-                    response = requests.post(test_url, json=json.loads(payload) if payload.startswith('{') else {'data': payload},
-                                           timeout=self.timeout, verify=False)
+                    response = self.session.post(test_url, json=json.loads(payload) if payload.startswith('{') else {'data': payload},
+                                           timeout=self.timeout)
                     
                     # Check for flash loan attack indicators
                     for indicator in self.vulnerability_indicators['flash_loan_exploit']:
@@ -1562,8 +1566,8 @@ class SmartContractTester:
             
             for payload in nft_config['payloads']:
                 try:
-                    response = requests.post(test_url, json=json.loads(payload) if payload.startswith('{') else {'data': payload},
-                                           timeout=self.timeout, verify=False)
+                    response = self.session.post(test_url, json=json.loads(payload) if payload.startswith('{') else {'data': payload},
+                                           timeout=self.timeout)
                     
                     # Check for NFT bridge exploitation indicators
                     for indicator in self.vulnerability_indicators['nft_bridge_exploit']:
@@ -1636,7 +1640,7 @@ class SmartContractTester:
         for path in sig_paths:
             try:
                 test_url = f"{url.rstrip('/')}{path}"
-                response = requests.get(test_url, timeout=self.timeout, verify=False)
+                response = self.session.get(test_url, timeout=self.timeout)
                 
                 if response.status_code == 200:
                     # Check for vulnerable function signatures
