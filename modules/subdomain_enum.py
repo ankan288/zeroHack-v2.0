@@ -191,13 +191,16 @@ class SubdomainEnum:
         if self.level in ['moderate', 'extreme']:
             print(f"{Fore.CYAN}[*] Method 2: Certificate Transparency Logs{Style.RESET_ALL}")
             ct_subdomains = self.certificate_transparency()
+            # Use set for efficient membership testing
+            existing_domains = {r['domain'] for r in all_results['subdomains']}
             for subdomain in ct_subdomains:
-                if subdomain not in [r['domain'] for r in all_results['subdomains']]:
+                if subdomain not in existing_domains:
                     all_results['subdomains'].append({
                         'domain': subdomain, 
                         'ips': ['Unknown'], 
                         'method': 'Certificate Transparency'
                     })
+                    existing_domains.add(subdomain)  # Keep set updated
                     print(f"{Fore.GREEN}[+] CT Found: {subdomain}{Style.RESET_ALL}")
             all_results['methods_used'].append('Certificate Transparency')
         

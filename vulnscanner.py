@@ -343,14 +343,19 @@ class zeroHack:
     
     def save_report_to_file(self, results, output_file):
         """Save detailed report to JSON file"""
-        import json
-        
-        # Prepare serializable results
-        export_results = results.copy()
-        if export_results['scan_time']['start']:
-            export_results['scan_time']['start'] = export_results['scan_time']['start'].isoformat()
-        if self.end_time:
-            export_results['scan_time']['end'] = self.end_time.isoformat()
+        # Prepare serializable results without full deep copy
+        export_results = {
+            'target': results['target'],
+            'level': results['level'],
+            'scan_time': {
+                'start': results['scan_time']['start'].isoformat() if results['scan_time']['start'] else None,
+                'end': self.end_time.isoformat() if self.end_time else None
+            },
+            'subdomains': results.get('subdomains', []),
+            'open_ports': results.get('open_ports', []),
+            'vulnerabilities': results.get('vulnerabilities', []),
+            'summary': results.get('summary', {})
+        }
         
         with open(output_file, 'w') as f:
             json.dump(export_results, f, indent=2, default=str)
