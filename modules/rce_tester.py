@@ -21,7 +21,7 @@ class RCETester:
         
         # Use session for connection pooling
         self.session = requests.Session()
-        self.session.verify = False
+        self.session.verify = True
         self.level = level
         self.vulnerabilities = []
         

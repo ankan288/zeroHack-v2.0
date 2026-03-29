@@ -34,7 +34,7 @@ class SQLInjectionTester:
         
         # Use session for connection pooling
         self.session = requests.Session()
-        self.session.verify = False
+        self.session.verify = True
         
         # SQL Injection Classification (as per provided diagram)
         self.sqli_types = {
