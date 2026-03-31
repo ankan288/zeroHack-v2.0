@@ -52,27 +52,54 @@
 
 ## 🚀 Installation
 
-### Requirements
-- Python 3.8+
-- pip
+### Prerequisites
+- **Python 3.8+** (Ensure Python is added to your system PATH)
+- **Git** (To clone the repository)
+- **pip** (Python package installer)
 
-### Windows
-```powershell
+### Step 1: Clone the Repository
+Download the latest version of zeroHack v2.0 directly from GitHub:
+```bash
 git clone https://github.com/ankan288/zeroHack-v2.0.git
-cd zeroHack-v2.0
+cd "zeroHack  v2.0"
+```
+
+### Step 2: Set Up a Virtual Environment (Recommended)
+Creating a virtual environment ensures that zeroHack's dependencies don't conflict with other Python packages on your system.
+
+**For Windows:**
+```powershell
+python -m venv venv
+.\venv\Scripts\activate
+```
+
+**For Linux/macOS:**
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+### Step 3: Install Required Dependencies
+Install the required packages using `pip`.
+
+**For Windows:**
+```powershell
 pip install -r requirements.txt
+```
+
+**For Linux/macOS:**
+```bash
+pip3 install -r requirements.txt
+```
+
+### Step 4: Verify Installation
+Run the tool's help command to make sure everything is installed correctly:
+```bash
 python vulnscanner.py --help
 ```
 
-### Linux/macOS
-```bash
-git clone https://github.com/ankan288/zeroHack-v2.0.git
-cd zeroHack-v2.0
-pip3 install -r requirements.txt
-python3 vulnscanner.py --help
-```
-
-### Kali Linux (Quick Install)
+### 🐧 Kali Linux (Quick Install)
+If you are using Kali Linux, we have provided an automated installation script:
 ```bash
 chmod +x install-kali.sh
 sudo ./install-kali.sh
