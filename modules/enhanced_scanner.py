@@ -363,7 +363,7 @@ class EnhancedSecurityScanner:
         found_count = 0
         
         def check_path(path):
-            nonlocal found_count
+            local_findings = []
             try:
                 full_url = urljoin(url, path)
                 response = requests.get(
@@ -394,10 +394,8 @@ class EnhancedSecurityScanner:
                                 'description': f'Sensitive file accessible: {path}',
                                 'remediation': 'Remove or restrict access to this file'
                             }
-                            self.findings.append(finding)
-                            found_count += 1
-                            print(f"  {Fore.RED}[!] Found: {path} ({content_length} bytes){Style.RESET_ALL}")
-                            return True
+                            local_findings.append((finding, f"  {Fore.RED}[!] Found: {path} ({content_length} bytes){Style.RESET_ALL}"))
+                            return local_findings
                         
                         # Check for specific file signatures
                         content = response.text[:500].lower()
@@ -411,18 +409,21 @@ class EnhancedSecurityScanner:
                                 'description': f'Potentially sensitive content in: {path}',
                                 'remediation': 'Review and remove sensitive files from public access'
                             }
-                            self.findings.append(finding)
-                            found_count += 1
-                            print(f"  {Fore.RED}[!] Sensitive content: {path}{Style.RESET_ALL}")
-                            return True
+                            local_findings.append((finding, f"  {Fore.RED}[!] Sensitive content: {path}{Style.RESET_ALL}"))
+                            return local_findings
                             
-            except:
+            except requests.RequestException:
                 pass
-            return False
+            return local_findings
         
         # Check paths in parallel
         with ThreadPoolExecutor(max_workers=10) as executor:
-            executor.map(check_path, self.sensitive_paths[:30])  # Limit for speed
+            results = list(executor.map(check_path, self.sensitive_paths[:30]))  # Limit for speed
+            for local_findings in results:
+                for finding, msg in local_findings:
+                    self.findings.append(finding)
+                    print(msg)
+                    found_count += 1
         
         if found_count == 0:
             print(f"  {Fore.GREEN}[+] No sensitive files found{Style.RESET_ALL}")
@@ -495,6 +496,7 @@ class EnhancedSecurityScanner:
             url.replace('https://', 'https://evil.'),
         ]
         
+        success = False
         for origin in test_origins:
             try:
                 response = requests.get(
@@ -507,6 +509,7 @@ class EnhancedSecurityScanner:
                     }
                 )
                 
+                success = True
                 acao = response.headers.get('Access-Control-Allow-Origin', '')
                 acac = response.headers.get('Access-Control-Allow-Credentials', '')
                 
@@ -541,10 +544,11 @@ class EnhancedSecurityScanner:
                     print(f"  {Fore.RED}[!] CORS: Reflects origin {origin}{Style.RESET_ALL}")
                     break
                     
-            except:
+            except requests.RequestException:
                 pass
         else:
-            print(f"  {Fore.GREEN}[+] CORS configuration appears secure{Style.RESET_ALL}")
+            if success:
+                print(f"  {Fore.GREEN}[+] CORS configuration appears secure{Style.RESET_ALL}")
     
     def check_cookie_security(self, url):
         """Check cookie security flags"""
@@ -626,7 +630,7 @@ class EnhancedSecurityScanner:
                     self.findings.append(finding)
                     print(f"  {Fore.YELLOW}[!] {method} returned {response.status_code}{Style.RESET_ALL}")
                     
-            except:
+            except requests.RequestException:
                 pass
         
         # Check OPTIONS for allowed methods
@@ -635,7 +639,7 @@ class EnhancedSecurityScanner:
             allow = response.headers.get('Allow', '')
             if allow:
                 print(f"  {Fore.CYAN}[i] Allowed methods: {allow}{Style.RESET_ALL}")
-        except:
+        except requests.RequestException:
             pass
 
 def run_enhanced_scan(target):

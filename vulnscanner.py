@@ -92,6 +92,7 @@ class zeroHack:
         from modules.ssrf_tester import SSRFTester
         from modules.rce_tester import RCETester
         from modules.idor_tester import IDORTester
+        from modules.business_logic_tester import BusinessLogicTester
         from modules.web3_tester import Web3Tester
         from modules.additional_vulns import AdditionalVulnTester
         from modules.smart_contract_tester import SmartContractTester
@@ -184,6 +185,13 @@ class zeroHack:
         idor_tester = IDORTester(timeout=level_config['timeout'], level=args.level)
         idor_vulns = idor_tester.test_idor(targets)
         all_vulnerabilities.extend(idor_vulns)
+
+        # Business Logic Testing
+        print(f"\n{Fore.CYAN}--- Business Logic Testing ---{Style.RESET_ALL}")
+        for targ in targets:
+            bl_tester = BusinessLogicTester(target_url=targ, level=args.level)
+            bl_vulns = bl_tester.scan()
+            all_vulnerabilities.extend(bl_vulns)
         
         # Web3/Blockchain Testing
         print(f"\n{Fore.CYAN}--- Web3/Blockchain Testing ---{Style.RESET_ALL}")
